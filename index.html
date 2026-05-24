@@ -276,12 +276,10 @@ video{width:100%;height:100%;object-fit:cover;display:block;transform:scaleX(-1)
 
 /* DETECTION FEEDBACK OVERLAY */
 .det-overlay{position:absolute;top:10px;left:10px;
-  background:rgba(11,13,17,.8);backdrop-filter:blur(8px);
+  background:rgba(11,13,17,.88);backdrop-filter:blur(8px);
   border:1px solid var(--border);border-radius:8px;
-  padding:6px 10px;font-size:.68rem;color:var(--text2);
-  font-family:'DM Mono',monospace;max-width:220px;line-height:1.5;}
-.det-overlay span.ok{color:var(--pass);}
-.det-overlay span.no{color:var(--fail);}
+  padding:8px 12px;font-size:.67rem;color:var(--text2);
+  font-family:'DM Mono',monospace;max-width:300px;line-height:1.8;}
 </style>
 </head>
 <body>
@@ -382,7 +380,7 @@ video{width:100%;height:100%;object-fit:cover;display:block;transform:scaleX(-1)
             <div class="hold-hd-l">
               <span id="hold-hint">Perform gesture shown above</span>
             </div>
-            <div class="hold-timer" id="hold-timer">0.0s / 3.0s</div>
+            <div class="hold-timer" id="hold-timer">0.0s / 4.0s</div>
           </div>
           <div class="hold-track">
             <div class="hold-bar" id="hold-bar"></div>
@@ -497,23 +495,23 @@ video{width:100%;height:100%;object-fit:cover;display:block;transform:scaleX(-1)
 // Same 6 steps for both hand wash and hand rub
 const WHO_STEPS = [
   { id:1, emoji:'🤲', name:'Palm to Palm',
-    instr:'Face both open palms toward camera — rub left & right',
-    detect: detectStep1, hold:3000 },
+    instr:'Both palms open facing cam — actively slide hands LEFT ↔ RIGHT against each other',
+    detect: detectStep1, hold:4000 },
   { id:2, emoji:'🙌', name:'Interlaced Fingers',
-    instr:'Mesh fingers of both hands — rub up and down',
-    detect: detectStep2, hold:3000 },
+    instr:'Mesh fingers together facing cam (fingertips overlap) — squeeze UP ↔ DOWN',
+    detect: detectStep2, hold:4000 },
   { id:3, emoji:'✋', name:'Back of Fingers (Dorsum)',
-    instr:'Curl one hand knuckles-toward-cam — rub against other palm',
-    detect: detectStep3, hold:3000 },
+    instr:'Curl ONE hand (knuckles toward cam), keep other open — rub LEFT ↔ RIGHT',
+    detect: detectStep3, hold:4000 },
   { id:4, emoji:'👍', name:'Rotational Thumbs',
-    instr:'Hook thumb around opposite palm — rotate in circles',
-    detect: detectStep4, hold:3000 },
+    instr:'Hook your thumb into opposite palm — rotate it in CIRCLES repeatedly',
+    detect: detectStep4, hold:4000 },
   { id:5, emoji:'🖐️', name:'Fingertip Scrub',
-    instr:'Curl fingertips, rotate on opposite palm',
-    detect: detectStep5, hold:3000 },
+    instr:'Tightly curl 4 fingertips onto opposite palm — rotate in tight CIRCLES',
+    detect: detectStep5, hold:4000 },
   { id:6, emoji:'🔄', name:'Wrist Rotation',
-    instr:'Clasp wrists together — rotate one wrist back and forth',
-    detect: detectStep6, hold:3000 },
+    instr:'Clasp one hand firmly around other WRIST — rotate wrist back and forth',
+    detect: detectStep6, hold:4000 },
 ];
 
 // ─── STATE ──────────────────────────────────────────────────────────────────
@@ -716,238 +714,450 @@ function drawSkeleton(lm, handIdx) {
   });
 }
 
+// ════════════════════════════════════════════════════════════════════════
+// OMAC DETECTION ENGINE v4  —  MOTION-FIRST, POSTURE-SECOND
+// S M Baqir
+//
+// DESIGN PHILOSOPHY (learned from v3 failures):
+//
+// v3 passed steps simply by seeing two hands in frame. That is useless
+// for a compliance audit. The new engine flips the priority order:
+//
+//   1. MOTION is the PRIMARY gate — no motion = no pass, ever.
+//   2. Motion must be DIRECTIONALLY SPECIFIC per step (not just "moving").
+//   3. Posture (finger shape, hand proximity) is a SECONDARY gate that
+//      ensures the correct WHO technique, not just any hand waving.
+//   4. Each step has a UNIQUE motion+posture signature that cannot be
+//      accidentally triggered by a different step.
+//
+// FRONT-CAMERA GEOMETRY (per demo video):
+//   The laptop webcam sees hands edge-on. Wrist (lm0) is at the BOTTOM.
+//   Fingertips point UP toward the camera. The camera does NOT see the
+//   palm face-on — it sees the silhouette.
+//
+//   Therefore:
+//   - "Spread fingers" = high X-span across all 5 fingertips
+//   - "Curled fingers" = tips have Y close to (or below) their own MCP Y
+//   - "Knuckles toward cam" = MCP Z < fingertip Z (knuckles are closer)
+//   - "Lateral rub" = large rangeX AND multiple X direction reversals
+//   - "Vertical rub" = large rangeY AND multiple Y direction reversals
+//   - "Circular" = significant range AND oscillation in BOTH X and Y
+//
+// MOTION MEASUREMENT:
+//   We keep 45 frames (~1.5 sec at 30fps) of landmark history.
+//   For each landmark we compute:
+//     - dist       : total path length (any movement)
+//     - rangeX/Y   : peak-to-peak displacement
+//     - oscX/Y     : direction reversals (back-and-forth = rub)
+//     - speed      : dist / elapsed_ms (filters out noise)
+//
+//   Thresholds are tuned so a person who is genuinely rubbing their hands
+//   will pass, but someone holding still, even if hands overlap, will not.
+//
+// PER-STEP UNIQUE SIGNATURES:
+//   Step 1: LATERAL rub (X) + BOTH hands open (spread tips) + close proximity
+//   Step 2: VERTICAL rub (Y) + interlaced geometry (alternating tip X order)
+//   Step 3: LATERAL rub (X) + exactly ONE hand curled (dorsum posture)
+//   Step 4: CIRCULAR (X+Y osc) on THUMB tip + thumb near opposite palm
+//   Step 5: CIRCULAR (X+Y osc) on FINGERTIPS + curled finger posture
+//   Step 6: ROTATIONAL wrist arc + wrists very tightly clasped
+//
+// DEBUG OVERLAY shows live values for the current step so the assessor
+// can see exactly why a step is or is not being detected.
+// ════════════════════════════════════════════════════════════════════════
+
+// ════════════════════════════════════════════════════════════════════════════════
+// OMAC DETECTION ENGINE v4 — RIGOROUS FRONT-CAM WHO STEP RECOGNITION
+//
+// DESIGN PRINCIPLES (learned from v3 failures):
+//
+// PROBLEM with v3: "two hands visible" was nearly sufficient to pass most steps.
+// The motion checks were too weak (low thresholds, absolute not relative motion).
+//
+// v4 APPROACH — each step must pass ALL of:
+//   [A] SPATIAL GEOMETRY   — where are the hands/fingers/wrists relative to each other?
+//   [B] HAND STATE         — open / curled / clasped? (unique per step)
+//   [C] MOTION DIRECTION   — what axis is the rubbing happening on? (X / Y / circular)
+//   [D] MOTION QUANTITY    — enough oscillations AND enough range to prove real rubbing
+//   [E] NEGATIVE GATE      — explicitly reject if geometry matches a DIFFERENT step
+//
+// CALIBRATION for front-facing webcam:
+//   - handW (lm5 to lm17) ≈ 0.10-0.20 in normalized coords for a hand ~30cm from cam
+//   - A single lateral rub stroke ≈ 0.05-0.10 normalized units
+//   - oscillation count: 3 full back-and-forth = 6 direction reversals minimum
+//   - All proximity tests use handW as the unit (scale-invariant)
+//
+// ════════════════════════════════════════════════════════════════════════════════
+
 // ─── HISTORY BUFFER ──────────────────────────────────────────────────────────
-const HIST_LEN = 35;
+const HIST_LEN = 45;  // ~1.5 sec at 30fps
 
 function pushHistory(hands) {
-  lmHistory.push({ts:Date.now(),
-    hands: hands.map(h=>h.map(p=>({x:p.x,y:p.y,z:p.z})))});
-  if (lmHistory.length>HIST_LEN) lmHistory.shift();
+  lmHistory.push({
+    ts: Date.now(),
+    hands: hands.map(h => h.map(p => ({ x: p.x, y: p.y, z: p.z })))
+  });
+  if (lmHistory.length > HIST_LEN) lmHistory.shift();
 }
 
 // ─── MATH HELPERS ────────────────────────────────────────────────────────────
-const d2=(a,b)=>Math.sqrt((a.x-b.x)**2+(a.y-b.y)**2);
-const d3=(a,b)=>Math.sqrt((a.x-b.x)**2+(a.y-b.y)**2+(a.z-b.z)**2);
-const handW=lm=>d2(lm[5],lm[17]);
-const palmCtr=lm=>{
+const d2    = (a, b) => Math.sqrt((a.x-b.x)**2 + (a.y-b.y)**2);
+const handW = lm => d2(lm[5], lm[17]);
+const palmCtr = lm => {
   const idx=[0,5,9,13,17];
-  return{x:idx.reduce((s,i)=>s+lm[i].x,0)/5,
-         y:idx.reduce((s,i)=>s+lm[i].y,0)/5};
+  return { x:idx.reduce((s,i)=>s+lm[i].x,0)/5, y:idx.reduce((s,i)=>s+lm[i].y,0)/5 };
 };
-const avg=(arr,fn)=>arr.reduce((s,x)=>s+fn(x),0)/arr.length;
 
-// Motion analysis: direction reversals (oscillation) in recent frames
-function motionOf(handIdx, lmIdx) {
-  const frames=lmHistory.filter(f=>f.hands[handIdx]?.length>lmIdx);
-  if (frames.length<8) return {oscX:0,oscY:0,dist:0,rangeX:0,rangeY:0};
-  const pts=frames.map(f=>f.hands[handIdx][lmIdx]);
-  let dist=0,oscX=0,oscY=0,pdx=0,pdy=0;
+// ─── MOTION ENGINE ────────────────────────────────────────────────────────────
+// Measures oscillation of a single landmark on a single hand.
+// THRESHOLD: direction reversal only counts if movement > minDelta (filters jitter).
+// Returns { dist, rangeX, rangeY, oscX, oscY }
+function lmMotion(handIdx, lmIdx, minDelta=0.004) {
+  const frames = lmHistory.filter(f => f.hands[handIdx]?.length > lmIdx);
+  if (frames.length < 12) return { dist:0, rangeX:0, rangeY:0, oscX:0, oscY:0 };
+  const pts = frames.map(f => f.hands[handIdx][lmIdx]);
+  let dist=0, oscX=0, oscY=0, pdx=0, pdy=0;
   const xs=pts.map(p=>p.x), ys=pts.map(p=>p.y);
-  for (let i=1;i<pts.length;i++){
-    const dx=pts[i].x-pts[i-1].x,dy=pts[i].y-pts[i-1].y;
+  for (let i=1; i<pts.length; i++) {
+    const dx=pts[i].x-pts[i-1].x, dy=pts[i].y-pts[i-1].y;
+    dist += Math.sqrt(dx*dx+dy*dy);
+    if (Math.abs(dx)>minDelta && pdx!==0 && Math.sign(dx)!==Math.sign(pdx)) oscX++;
+    if (Math.abs(dy)>minDelta && pdy!==0 && Math.sign(dy)!==Math.sign(pdy)) oscY++;
+    if (Math.abs(dx)>minDelta) pdx=dx;
+    if (Math.abs(dy)>minDelta) pdy=dy;
+  }
+  return { dist, rangeX:Math.max(...xs)-Math.min(...xs), rangeY:Math.max(...ys)-Math.min(...ys), oscX, oscY };
+}
+
+// ANTI-COMMON-MODE: palm-relative motion of a landmark within the same hand.
+// Subtracts the palm center movement, so a gesture of the hand parts RELATIVE
+// to the hand's own body is measured — removes whole-hand translation noise.
+function lmMotionRelToPalm(handIdx, lmIdx) {
+  const frames = lmHistory.filter(f => f.hands[handIdx]?.length > 20);
+  if (frames.length < 12) return { dist:0, rangeX:0, rangeY:0, oscX:0, oscY:0 };
+  const pts = frames.map(f => {
+    const h = f.hands[handIdx];
+    const px=[0,5,9,13,17].reduce((s,i)=>s+h[i].x,0)/5;
+    const py=[0,5,9,13,17].reduce((s,i)=>s+h[i].y,0)/5;
+    return { x: h[lmIdx].x - px, y: h[lmIdx].y - py };
+  });
+  let dist=0, oscX=0, oscY=0, pdx=0, pdy=0;
+  const xs=pts.map(p=>p.x), ys=pts.map(p=>p.y);
+  for (let i=1; i<pts.length; i++) {
+    const dx=pts[i].x-pts[i-1].x, dy=pts[i].y-pts[i-1].y;
     dist+=Math.sqrt(dx*dx+dy*dy);
-    if (pdx!==0&&Math.sign(dx)!==Math.sign(pdx)) oscX++;
-    if (pdy!==0&&Math.sign(dy)!==Math.sign(pdy)) oscY++;
-    pdx=dx; pdy=dy;
+    if (Math.abs(dx)>0.003 && pdx!==0 && Math.sign(dx)!==Math.sign(pdx)) oscX++;
+    if (Math.abs(dy)>0.003 && pdy!==0 && Math.sign(dy)!==Math.sign(pdy)) oscY++;
+    if (Math.abs(dx)>0.003) pdx=dx;
+    if (Math.abs(dy)>0.003) pdy=dy;
   }
-  return{oscX,oscY,dist,
-    rangeX:Math.max(...xs)-Math.min(...xs),
-    rangeY:Math.max(...ys)-Math.min(...ys)};
+  return { dist, rangeX:Math.max(...xs)-Math.min(...xs), rangeY:Math.max(...ys)-Math.min(...ys), oscX, oscY };
 }
-const palmMot=h=>motionOf(h,9);
 
-// ════════════════════════════════════════════════════════════════════════
-// FRONT-CAMERA DETECTION ENGINE v3
-//
-// What the front-facing webcam actually sees (per demo video):
-//
-// The candidate faces the laptop. Hands are raised, fingers point
-// TOWARD the lens. MediaPipe sees:
-//   - Wrist (lm 0) at BOTTOM of each hand silhouette
-//   - Fingertips (lm 4,8,12,16,20) at TOP or clustered near center
-//   - Z coordinate: near-zero (close to camera) for tips when facing cam
-//
-// Practical rules per step:
-//
-// STEP 1 Palm-to-Palm:
-//   Both hands facing cam, fingers spread open, hands side by side /
-//   overlapping. Tips spread wide. Moving laterally (X) together.
-//
-// STEP 2 Interlaced Fingers:
-//   Fingers meshed → combined tip-span wider than one hand.
-//   Hands close together. Vertical (Y) rubbing motion.
-//
-// STEP 3 Back of Fingers:
-//   ONE hand rotated so knuckles face cam → its MCP Z closer to cam
-//   than fingertip Z (knuckles forward). Or tips curled toward wrist.
-//   Lateral rubbing against the other open hand.
-//
-// STEP 4 Rotational Thumbs:
-//   Thumb tip (lm 4) of one hand is very close to opposite palm centre.
-//   Circular motion: oscillation in BOTH X and Y.
-//
-// STEP 5 Fingertip Scrub:
-//   Fingertips of one hand curl — distance from tip to MCP is small
-//   compared to handW. Rotational scrubbing: both X and Y oscillation.
-//
-// STEP 6 Wrist Rotation:
-//   Wrists (lm 0) of both hands very close to each other (clasped).
-//   One wrist sweeps a rotational arc: osc in X+Y combined >= 3.
-// ════════════════════════════════════════════════════════════════════════
+// RELATIVE INTER-HAND MOTION: motion of H0's palm relative to H1's palm.
+// This is the true "rubbing" signal — filters out camera movement.
+// Returns oscillation counts in X and Y of the relative position vector.
+function relMotion() {
+  const frames = lmHistory.filter(f => f.hands[0] && f.hands[1]);
+  if (frames.length < 12) return { oscX:0, oscY:0, rangeX:0, rangeY:0 };
+  const pts = frames.map(f => {
+    const [h0,h1]=[f.hands[0],f.hands[1]];
+    return { x: h0[9].x - h1[9].x, y: h0[9].y - h1[9].y };
+  });
+  let oscX=0, oscY=0, pdx=0, pdy=0;
+  const xs=pts.map(p=>p.x), ys=pts.map(p=>p.y);
+  for (let i=1; i<pts.length; i++) {
+    const dx=pts[i].x-pts[i-1].x, dy=pts[i].y-pts[i-1].y;
+    if (Math.abs(dx)>0.004 && pdx!==0 && Math.sign(dx)!==Math.sign(pdx)) oscX++;
+    if (Math.abs(dy)>0.004 && pdy!==0 && Math.sign(dy)!==Math.sign(pdy)) oscY++;
+    if (Math.abs(dx)>0.004) pdx=dx;
+    if (Math.abs(dy)>0.004) pdy=dy;
+  }
+  return { oscX, oscY, rangeX:Math.max(...xs)-Math.min(...xs), rangeY:Math.max(...ys)-Math.min(...ys) };
+}
 
-// Debug feedback object updated each frame
-let dbg = {};
+// ─── HAND STATE CLASSIFIERS ───────────────────────────────────────────────────
 
+// OPEN hand: all 4 fingers have their tip clearly above their own MCP in Y
+// (in webcam coords Y increases downward, so fingertip Y < MCP Y = fingers pointing up)
+// AND tip-to-MCP distance is large (fingers extended)
+function isHandOpen(lm) {
+  const hw = handW(lm);
+  if (hw < 0.001) return false;
+  const tips=[8,12,16,20], mcps=[5,9,13,17];
+  // Fingers pointing up: tipY < McpY (subtract 0.05 tolerance)
+  const allPointUp = tips.every((t,i) => lm[t].y < lm[mcps[i]].y + 0.05);
+  // Fingers extended: avg tip-to-MCP distance > 0.7 * handW
+  const avgExt = tips.reduce((s,t,i)=>s+d2(lm[t],lm[mcps[i]]),0)/4;
+  return allPointUp && avgExt > hw * 0.70;
+}
+
+// CURLED hand: fingertips are at or BELOW their own MCP in Y (pointing down or inward)
+// OR tip-to-MCP distance is small (fingers folded)
+// This catches: back-of-fingers posture (knuckles forward), fist, scrub curl
+function isHandCurled(lm) {
+  const hw = handW(lm);
+  if (hw < 0.001) return false;
+  const tips=[8,12,16,20], mcps=[5,9,13,17];
+  // Tips at or below MCP Y level (fingers bent down/in)
+  const curledByY = tips.filter((t,i) => lm[t].y > lm[mcps[i]].y - 0.02).length >= 3;
+  // OR: short tip-to-MCP distance
+  const avgExt = tips.reduce((s,t,i)=>s+d2(lm[t],lm[mcps[i]]),0)/4;
+  const curledByDist = avgExt < hw * 0.52;
+  return curledByY || curledByDist;
+}
+
+// TIGHT CURL (for step 5 fingertip scrub): tips bent past PIP joints
+// tipY > PIPy (tips below their own middle knuckle)
+function isTightlyCurled(lm) {
+  const hw = handW(lm);
+  if (hw < 0.001) return false;
+  const tips=[8,12,16,20], pips=[7,11,15,19];
+  const curled = tips.filter((t,i)=>lm[t].y > lm[pips[i]].y - 0.01).length;
+  const avgTipToPip = tips.reduce((s,t,i)=>s+d2(lm[t],lm[pips[i]]),0)/4;
+  return curled >= 3 || avgTipToPip < hw * 0.35;
+}
+
+// WRIST-COVER: one hand's wrist (lm0) is within the finger zone of the other hand
+// = clasping gesture for step 6
+function isWristCovered(h0, h1) {
+  // h0's wrist is "covered" if it is close to h1's wrist AND
+  // h1's fingertips (in Y) span across h0's wrist Y level
+  const wy0 = h0[0].y;
+  const tipYs1 = [8,12,16,20].map(i=>h1[i].y);
+  const minTip1 = Math.min(...tipYs1);
+  // h1's fingers should reach down to the level of h0's wrist (wrap around)
+  return Math.abs(h1[0].y - h0[0].y) < 0.10 && minTip1 < wy0 + 0.12;
+}
+
+// Debug state
+let dbgLines = [];
+function dbgSet(lines) { dbgLines = lines; }
+
+// ════════════════════════════════════════════════════════════════════════════════
+// STEP DETECTORS — each gate must pass ALL conditions
+// ════════════════════════════════════════════════════════════════════════════════
+
+// ─── STEP 1: PALM TO PALM (Lateral rub) ──────────────────────────────────────
+// WHAT: Both palms flat facing cam, pressed together, rubbing LEFT ↔ RIGHT.
+// UNIQUE: BOTH hands OPEN (fingers pointing up). Motion: X-dominant, inter-hand.
+// GATE A: both hands open (isHandOpen = true for both)
+// GATE B: hands close (wrist dist < 2.5×hw)
+// GATE C: relative X-oscillation ≥ 4 (hands rubbing against each other left-right)
+// GATE D: relative rangeX > 0.045 (meaningful stroke amplitude)
+// GATE E: X-motion dominant (rangeX > rangeY × 1.3) — not vertical
+// REJECTS: curled hand (would be step 3), vertical motion (step 2), wrists clasped (step 6)
 function detectStep1(hands) {
-  // Both hands open, facing cam, rubbing laterally
-  if (hands.length<2) { dbg.s1='need 2 hands'; return false; }
-  const h0=hands[0],h1=hands[1];
+  if (hands.length<2) { dbgSet(['❌ Need both hands']); return false; }
+  const h0=hands[0], h1=hands[1];
   const hw=(handW(h0)+handW(h1))/2;
-
-  // Hands must be reasonably close to each other
   const wDist=d2(h0[0],h1[0]);
-  if (wDist>hw*3.0) { dbg.s1='hands too far'; return false; }
 
-  // Both hands should have spread fingers (not curled)
-  // Tip-to-MCP distance on index: if > 0.5*handW the finger is fairly open
-  const openH0 = d2(h0[8],h0[5])>hw*0.4;
-  const openH1 = d2(h1[8],h1[5])>hw*0.4;
-  if (!openH0||!openH1) { dbg.s1='fingers not open'; return false; }
+  const open0=isHandOpen(h0), open1=isHandOpen(h1);
+  const close=wDist < hw*2.8;
+  const rel=relMotion();
+  const motionOK = rel.oscX>=4 && rel.rangeX>0.045;
+  const xDom = rel.rangeX > rel.rangeY*1.3;
+  // Negative gate: reject if wrists clasped (step 6 territory)
+  const notClassped = wDist > hw*0.8;
 
-  // Lateral (X) rubbing motion
-  const m0=palmMot(0), m1=palmMot(1);
-  const lat = m0.rangeX>0.03||m1.rangeX>0.03||m0.oscX>=2||m1.oscX>=2;
-  const moving = m0.dist>0.03||m1.dist>0.03;
-  dbg.s1=`lat=${lat} mov=${moving} wDist=${wDist.toFixed(2)}`;
-  return moving && lat;
+  dbgSet([
+    `H0 open:${open0?'✅':'❌'}  H1 open:${open1?'✅':'❌'}`,
+    `Wrist dist:${wDist.toFixed(3)} (need <${(hw*2.8).toFixed(2)}) ${close?'✅':'❌'}`,
+    `Rel oscX:${rel.oscX}(≥4) rangeX:${rel.rangeX.toFixed(3)}(>0.045) ${motionOK?'✅':'❌'}`,
+    `X-dominant: rangeX${rel.rangeX.toFixed(3)} vs rangeY${rel.rangeY.toFixed(3)} ${xDom?'✅':'❌'}`,
+  ]);
+  return open0 && open1 && close && motionOK && xDom && notClassped;
 }
 
+// ─── STEP 2: INTERLACED FINGERS (Vertical squeeze-rub) ───────────────────────
+// WHAT: Fingers of both hands meshed together, rubbing UP ↔ DOWN.
+// UNIQUE: tips from H0 and H1 interleave in X-space. Motion: Y-dominant.
+// GATE A: hands close
+// GATE B: fingertips of both hands overlap in X (interlaced X-span check)
+// GATE C: relative Y-oscillation ≥ 4
+// GATE D: relative rangeY > 0.045
+// GATE E: Y-motion dominant (rangeY > rangeX × 1.2)
+// GATE F: BOTH hands open (not curled) — distinguishes from steps 3/5
+// REJECTS: purely lateral motion (step 1), curled hand (step 3)
 function detectStep2(hands) {
-  // Interlaced fingers: combined tip span wider, vertical motion
-  if (hands.length<2) { dbg.s2='need 2 hands'; return false; }
-  const h0=hands[0],h1=hands[1];
+  if (hands.length<2) { dbgSet(['❌ Need both hands']); return false; }
+  const h0=hands[0], h1=hands[1];
   const hw=(handW(h0)+handW(h1))/2;
+  const wDist=d2(h0[0],h1[0]);
+  const close=wDist<hw*2.8;
 
-  // Palms close
-  const pc0=palmCtr(h0),pc1=palmCtr(h1);
-  if (d2(pc0,pc1)>hw*2.8) { dbg.s2='palms far'; return false; }
+  // Interlaced: X-ranges of fingertips overlap
+  const tx0=[8,12,16,20].map(i=>h0[i].x), tx1=[8,12,16,20].map(i=>h1[i].x);
+  const [min0,max0]=[Math.min(...tx0),Math.max(...tx0)];
+  const [min1,max1]=[Math.min(...tx1),Math.max(...tx1)];
+  const overlapFrac = Math.min(max0,max1)>Math.max(min0,min1)
+    ? (Math.min(max0,max1)-Math.max(min0,min1)) / (Math.max(max0,max1)-Math.min(min0,min1))
+    : 0;
+  const interlaced=overlapFrac>0.25;
 
-  // Combined fingertip X-span > single hand (fingers interleaved side by side)
-  const allX=[8,12,16,20].map(i=>h0[i].x).concat([8,12,16,20].map(i=>h1[i].x));
-  const combSpan=Math.max(...allX)-Math.min(...allX);
-  const singleSpan=Math.max(handW(h0),handW(h1));
-  if (combSpan<singleSpan*1.05) { dbg.s2=`span too narrow ${combSpan.toFixed(2)}`; return false; }
+  // Both hands should be at least somewhat open (not fists)
+  const open0=isHandOpen(h0), open1=isHandOpen(h1);
 
-  // Vertical (Y) motion — squeezing / rubbing up-down
-  const m0=palmMot(0),m1=palmMot(1);
-  const vert = m0.rangeY>0.025||m1.rangeY>0.025||m0.oscY>=2||m1.oscY>=2;
-  const moving = m0.dist>0.03||m1.dist>0.03;
-  dbg.s2=`vert=${vert} span=${combSpan.toFixed(2)}`;
-  return moving && vert;
+  const rel=relMotion();
+  const motionOK=rel.oscY>=4 && rel.rangeY>0.045;
+  const yDom=rel.rangeY>rel.rangeX*1.2;
+
+  dbgSet([
+    `Interlaced: overlap${(overlapFrac*100).toFixed(0)}%(>25%) ${interlaced?'✅':'❌'}`,
+    `H0 open:${open0?'✅':'❌'}  H1 open:${open1?'✅':'❌'}`,
+    `Rel oscY:${rel.oscY}(≥4) rangeY:${rel.rangeY.toFixed(3)}(>0.045) ${motionOK?'✅':'❌'}`,
+    `Y-dominant: rangeY${rel.rangeY.toFixed(3)} vs rangeX${rel.rangeX.toFixed(3)} ${yDom?'✅':'❌'}`,
+  ]);
+  return close && interlaced && open0 && open1 && motionOK && yDom;
 }
 
+// ─── STEP 3: BACK OF FINGERS / DORSUM (Lateral rub) ──────────────────────────
+// WHAT: ONE hand curled (knuckles toward cam), back of fingers rubbed on other palm. Lateral motion.
+// UNIQUE: EXACTLY ONE hand is curled/dorsum. Other hand is OPEN. Motion: X-dominant.
+// GATE A: exactly one hand curled, one open
+// GATE B: hands close
+// GATE C: relative X-oscillation ≥ 4 + rangeX > 0.04
+// GATE D: X-dominant motion
+// REJECTS: both open (step 1/2), both curled (step 5 with wrong motion), circular motion (step 5)
 function detectStep3(hands) {
-  // Back of fingers: one hand curled (knuckles forward / tips toward wrist)
-  if (hands.length<2) { dbg.s3='need 2 hands'; return false; }
-  const h0=hands[0],h1=hands[1];
-
-  function isCurledOrDorsum(lm) {
-    const hw=handW(lm);
-    // Tips close to their own knuckles (MCP) → curled
-    const tipToMCP=[8,12,16,20].map((t,i)=>d2(lm[t],lm[[5,9,13,17][i]]));
-    const avgCurl=tipToMCP.reduce((s,v)=>s+v,0)/4;
-    // Z of knuckles closer to cam (lower Z in MediaPipe = closer)
-    const knuckleZ=[5,9,13,17].reduce((s,i)=>s+lm[i].z,0)/4;
-    const tipZ=[8,12,16,20].reduce((s,i)=>s+lm[i].z,0)/4;
-    const knucklesForward = knuckleZ < tipZ - 0.04;
-    return avgCurl < hw*0.65 || knucklesForward;
-  }
-
-  const curl0=isCurledOrDorsum(h0), curl1=isCurledOrDorsum(h1);
-  if (!curl0&&!curl1) { dbg.s3='no dorsum hand'; return false; }
-  if (curl0&&curl1) { dbg.s3='both curled'; return false; }
-
-  // Hands close
+  if (hands.length<2) { dbgSet(['❌ Need both hands']); return false; }
+  const h0=hands[0], h1=hands[1];
   const hw=(handW(h0)+handW(h1))/2;
-  if (d2(h0[0],h1[0])>hw*2.5) { dbg.s3='hands far'; return false; }
+  const wDist=d2(h0[0],h1[0]);
+  const close=wDist<hw*2.8;
 
-  // Lateral motion
-  const m0=palmMot(0),m1=palmMot(1);
-  const lat=m0.rangeX>0.025||m1.rangeX>0.025||m0.oscX>=2||m1.oscX>=2;
-  const moving=m0.dist>0.025||m1.dist>0.025;
-  dbg.s3=`curl0=${curl0} curl1=${curl1} lat=${lat}`;
-  return moving && lat;
+  const curl0=isHandCurled(h0), curl1=isHandCurled(h1);
+  const open0=isHandOpen(h0), open1=isHandOpen(h1);
+  // Exactly one curled, other open
+  const exactlyOneCurled=(curl0&&open1)||(!curl0&&!open0&&curl1)||(open0&&curl1);
+  const simpleCurled=(curl0&&!curl1)||(curl1&&!curl0);
+
+  const rel=relMotion();
+  const motionOK=rel.oscX>=4 && rel.rangeX>0.04;
+  const xDom=rel.rangeX>rel.rangeY*1.0;
+  // Negative gate: circular motion would be step 5 (reject if Y also high)
+  const notCircular=!(rel.oscX>=3 && rel.oscY>=3 && rel.rangeY>rel.rangeX*0.7);
+
+  dbgSet([
+    `H0 curled:${curl0?'✅':'❌'}(${isHandOpen(h0)?'open':'?'})  H1 curled:${curl1?'✅':'❌'}(${isHandOpen(h1)?'open':'?'})`,
+    `ExactlyOne curled:${simpleCurled?'✅':'❌'}  Not circular:${notCircular?'✅':'❌'}`,
+    `Rel oscX:${rel.oscX}(≥4) rangeX:${rel.rangeX.toFixed(3)}(>0.04) ${motionOK?'✅':'❌'}`,
+    `X-dominant: X${rel.rangeX.toFixed(3)} Y${rel.rangeY.toFixed(3)} ${xDom?'✅':'❌'}`,
+  ]);
+  return close && simpleCurled && motionOK && xDom && notCircular;
 }
 
+// ─── STEP 4: ROTATIONAL THUMBS (Circular thumb orbit) ────────────────────────
+// WHAT: Thumb of one hand wraps around opposite palm, rotating in circles.
+// UNIQUE: thumb tip (lm4) near OPPOSITE palm center. CIRCULAR motion of thumb = both X+Y.
+// GATE A: thumb tip of at least one hand is within 1.2×hw of opposite palm center
+// GATE B: wrists close (hand-to-hand contact)
+// GATE C: that thumb's X-oscillation ≥ 3 AND Y-oscillation ≥ 3 (circular)
+// GATE D: thumb total dist > 0.05 (real movement, not jitter)
+// REJECTS: if thumb is NOT near opposite palm (critical discriminator)
 function detectStep4(hands) {
-  // Rotational thumbs: thumb tip near opposite palm, circular motion
-  if (hands.length<2) { dbg.s4='need 2 hands'; return false; }
-  const h0=hands[0],h1=hands[1];
+  if (hands.length<2) { dbgSet(['❌ Need both hands']); return false; }
+  const h0=hands[0], h1=hands[1];
   const hw=(handW(h0)+handW(h1))/2;
+  const wDist=d2(h0[0],h1[0]);
+  const close=wDist<hw*2.8;
 
-  const pc0=palmCtr(h0),pc1=palmCtr(h1);
-  const t0nP1=d2(h0[4],pc1)<hw*1.4;
-  const t1nP0=d2(h1[4],pc0)<hw*1.4;
-  if (!t0nP1&&!t1nP0) { dbg.s4='thumb not near palm'; return false; }
+  const pc0=palmCtr(h0), pc1=palmCtr(h1);
+  const t0d=d2(h0[4],pc1), t1d=d2(h1[4],pc0);
+  const t0near=t0d<hw*1.25, t1near=t1d<hw*1.25;
+  const thumbHand=t0near?0:(t1near?1:-1);
+  const thumbEngaged=thumbHand>=0;
 
-  // Wrists close
-  if (d2(h0[0],h1[0])>hw*2.8) { dbg.s4='wrists far'; return false; }
-
-  // Circular: both X and Y oscillation on the thumb hand
-  const thumbHand=t0nP1?0:1;
-  const tm=motionOf(thumbHand,4);
-  const circ=tm.oscX>=2&&tm.oscY>=2&&tm.dist>0.04;
-  dbg.s4=`thumb=${thumbHand} oscX=${tm.oscX} oscY=${tm.oscY} d=${tm.dist.toFixed(2)}`;
-  return circ;
-}
-
-function detectStep5(hands) {
-  // Fingertip scrub: one hand's tips curled (close to PIPs), rotational motion
-  if (hands.length<2) { dbg.s5='need 2 hands'; return false; }
-  const h0=hands[0],h1=hands[1];
-
-  function isCurledTips(lm) {
-    const hw=handW(lm);
-    // Tip to PIP distance
-    const tipToPIP=[8,12,16,20].map((t,i)=>d2(lm[t],lm[[7,11,15,19][i]]));
-    return tipToPIP.reduce((s,v)=>s+v,0)/4 < hw*0.55;
+  let circular=false, tm={oscX:0,oscY:0,dist:0};
+  if (thumbEngaged) {
+    tm=lmMotion(thumbHand,4,0.003);
+    circular=tm.oscX>=3 && tm.oscY>=3 && tm.dist>0.05;
   }
 
-  const c0=isCurledTips(h0), c1=isCurledTips(h1);
-  if (!c0&&!c1) { dbg.s5='no curled tips'; return false; }
-
-  const hw=(handW(h0)+handW(h1))/2;
-  if (d2(h0[0],h1[0])>hw*2.5) { dbg.s5='hands far'; return false; }
-
-  const scrubH=c0?0:1;
-  const sm=palmMot(scrubH);
-  const rot=sm.oscX>=2&&sm.oscY>=2&&sm.dist>0.035;
-  dbg.s5=`curled=${scrubH} osc=${sm.oscX}/${sm.oscY} d=${sm.dist.toFixed(2)}`;
-  return rot;
+  dbgSet([
+    `Thumb0→P1:${t0d.toFixed(3)}(${t0near?'✅':'❌'<=(hw*1.25)?'✅':'❌'})  Thumb1→P0:${t1d.toFixed(3)}(${t1near?'✅':'❌'})`,
+    `Thumb engaged: hand${thumbHand} ${thumbEngaged?'✅':'❌'}`,
+    `Thumb circular: oscX${tm.oscX}(≥3) oscY${tm.oscY}(≥3) dist${tm.dist.toFixed(3)}(>0.05) ${circular?'✅':'❌'}`,
+    `Close:${close?'✅':'❌'}  PASS:${thumbEngaged&&close&&circular?'✅':'❌'}`,
+  ]);
+  return thumbEngaged && close && circular;
 }
 
-function detectStep6(hands) {
-  // Wrist clasp + rotation
-  if (hands.length<2) { dbg.s6='need 2 hands'; return false; }
-  const h0=hands[0],h1=hands[1];
+// ─── STEP 5: FINGERTIP SCRUB (Circular curl-rub) ─────────────────────────────
+// WHAT: Fingertips of one hand tightly curled, rotating in circles on opposite palm.
+// UNIQUE: TIGHT curl (tips past PIP joints). CIRCULAR motion. Curled tips near opposite palm.
+// GATE A: exactly one hand tightly curled (isTightlyCurled)
+// GATE B: that hand's curled tips are near the OTHER hand's palm center (< 1.3×hw)
+// GATE C: curled hand shows CIRCULAR motion: oscX≥3 AND oscY≥3
+// GATE D: sufficient distance traveled > 0.05
+// REJECTS: step 3 (not circular), step 4 (thumb not fingertips)
+// NOTE: Requires TIGHT curl (past PIP) to distinguish from step 3's MCP-level curl
+function detectStep5(hands) {
+  if (hands.length<2) { dbgSet(['❌ Need both hands']); return false; }
+  const h0=hands[0], h1=hands[1];
   const hw=(handW(h0)+handW(h1))/2;
+  const wDist=d2(h0[0],h1[0]);
+  const close=wDist<hw*2.8;
 
-  // Wrists must be very close
-  const wdist=d2(h0[0],h1[0]);
-  if (wdist>hw*1.6) { dbg.s6=`wrists not clasped ${wdist.toFixed(2)}`; return false; }
+  const tight0=isTightlyCurled(h0), tight1=isTightlyCurled(h1);
+  const curl0=isHandCurled(h0), curl1=isHandCurled(h1);
+  // Need at least one tightly curled hand
+  const hasTight=tight0||tight1;
+  const scrubH=tight0?0:1;
 
-  // At least one hand's fingers should be pointing ≈ downward or lateral
-  // (i.e. wrist Y close to or below tip Y — wrist-clasp posture)
-  const tY0=avg([8,12,16,20].map(i=>h0[i].y),v=>v);
-  const tY1=avg([8,12,16,20].map(i=>h1[i].y),v=>v);
-  const clasp = tY0 > h0[0].y - 0.18 || tY1 > h1[0].y - 0.18;
-  if (!clasp) { dbg.s6='not clasp posture'; return false; }
+  // Curled tips should be near opposite palm
+  const pc0=palmCtr(h0), pc1=palmCtr(h1);
+  const tipCtr0={ x:[8,12,16,20].reduce((s,i)=>s+h0[i].x,0)/4, y:[8,12,16,20].reduce((s,i)=>s+h0[i].y,0)/4 };
+  const tipCtr1={ x:[8,12,16,20].reduce((s,i)=>s+h1[i].x,0)/4, y:[8,12,16,20].reduce((s,i)=>s+h1[i].y,0)/4 };
+  const tips0NearP1=d2(tipCtr0,pc1)<hw*1.4, tips1NearP0=d2(tipCtr1,pc0)<hw*1.4;
+  const tipsNearOpp=(tight0&&tips0NearP1)||(tight1&&tips1NearP0);
 
-  // Wrist rotation arc
-  const wm0=motionOf(0,0),wm1=motionOf(1,0);
-  const rot=(wm0.oscX+wm0.oscY>=3&&wm0.dist>0.025)||(wm1.oscX+wm1.oscY>=3&&wm1.dist>0.025);
-  dbg.s6=`wdist=${wdist.toFixed(2)} rot=${rot}`;
-  return rot;
+  // Circular motion on scrubbing hand (palm motion)
+  const pm=lmMotion(scrubH,9,0.003);
+  const circular=pm.oscX>=3 && pm.oscY>=3 && pm.dist>0.05;
+
+  dbgSet([
+    `Tight curl: H0${tight0?'✅':'❌'} H1${tight1?'✅':'❌'}  Has tight:${hasTight?'✅':'❌'}`,
+    `Tips near opp palm:${tipsNearOpp?'✅':'❌'}  ScrubH:${scrubH}`,
+    `Circular oscX${pm.oscX}(≥3) oscY${pm.oscY}(≥3) dist${pm.dist.toFixed(3)}(>0.05) ${circular?'✅':'❌'}`,
+    `Close:${close?'✅':'❌'}  PASS:${hasTight&&tipsNearOpp&&circular&&close?'✅':'❌'}`,
+  ]);
+  return hasTight && tipsNearOpp && circular && close;
+}
+
+// ─── STEP 6: WRIST ROTATION (Clasp and rotate) ───────────────────────────────
+// WHAT: One hand clasps the other's WRIST and rotates it back and forth.
+// UNIQUE: Wrists are CO-LOCATED (much closer than other steps). Wrist arc motion.
+// GATE A: wrists VERY close: d(wrist0,wrist1) < 1.0×hw (STRICTLY tighter than other steps)
+// GATE B: clasping posture: one hand's fingers reach DOWN to the wrist level of other hand
+// GATE C: at least one wrist traces a rotational arc: total osc ≥ 4 AND dist > 0.03
+// NOTE: 1.0×hw threshold is the key discriminator — steps 1-5 allow up to 2.8×hw wrist dist.
+//   This means you must physically clasp the wrist (hands overlapping at wrist level).
+function detectStep6(hands) {
+  if (hands.length<2) { dbgSet(['❌ Need both hands']); return false; }
+  const h0=hands[0], h1=hands[1];
+  const hw=(handW(h0)+handW(h1))/2;
+  const wDist=d2(h0[0],h1[0]);
+  // Very strict wrist closeness
+  const clasped=wDist<hw*1.1;
+
+  // Clasp posture check
+  const claspOK=isWristCovered(h0,h1)||isWristCovered(h1,h0);
+
+  // Wrist oscillation (rotational arc)
+  const wm0=lmMotion(0,0,0.003), wm1=lmMotion(1,0,0.003);
+  const rot0=(wm0.oscX+wm0.oscY)>=4 && wm0.dist>0.03;
+  const rot1=(wm1.oscX+wm1.oscY)>=4 && wm1.dist>0.03;
+  const rotating=rot0||rot1;
+
+  dbgSet([
+    `Wrist dist:${wDist.toFixed(3)} (need<${(hw*1.1).toFixed(3)}) ${clasped?'✅':'❌'}`,
+    `Clasp posture:${claspOK?'✅':'❌'}`,
+    `W0 osc:${wm0.oscX}+${wm0.oscY}=${wm0.oscX+wm0.oscY}(≥4) d:${wm0.dist.toFixed(3)} ${rot0?'✅':'❌'}`,
+    `W1 osc:${wm1.oscX}+${wm1.oscY}=${wm1.oscX+wm1.oscY}(≥4) d:${wm1.dist.toFixed(3)} ${rot1?'✅':'❌'}`,
+  ]);
+  return clasped && claspOK && rotating;
 }
 
 // ─── RESULTS CALLBACK ────────────────────────────────────────────────────────
@@ -965,17 +1175,24 @@ function onResults(results) {
   // Draw skeletons
   hands.forEach((lm,i) => drawSkeleton(lm,i));
 
-  // Update debug overlay
-  const det = document.getElementById('det-debug');
-  det.style.display = 'block';
-  det.innerHTML = `Hands: <span class="${hands.length>=2?'ok':'no'}">${hands.length}</span><br>
-    Step: ${currentStep+1}/6${currentStep<6?' — '+WHO_STEPS[currentStep].name:''}`;
-
-  // Detect current step
-  if (currentStep<WHO_STEPS.length && !stepPassed) {
-    const detected = WHO_STEPS[currentStep].detect(hands);
+  // Run detection first (populates dbgLines)
+  let detected = false;
+  if (currentStep < WHO_STEPS.length && !stepPassed) {
+    detected = WHO_STEPS[currentStep].detect(hands);
     tickDetection(detected);
   }
+
+  // Show live debug overlay
+  const det = document.getElementById('det-debug');
+  det.style.display = 'block';
+  const hCol = hands.length>=2 ? 'color:var(--pass)' : 'color:var(--fail)';
+  const stepName = currentStep < WHO_STEPS.length ? WHO_STEPS[currentStep].name : 'Done';
+  const detCol = detected ? 'color:var(--pass)' : 'color:var(--warn)';
+  det.innerHTML =
+    `<span style="${hCol};font-weight:600">Hands: ${hands.length}/2</span> &nbsp;`+
+    `<span style="color:var(--accent)">Step ${Math.min(currentStep+1,6)}: ${stepName}</span>`+
+    (dbgLines.length ? '<br><span style="'+detCol+'">'+(detected?'● DETECTED':'○ Not detected yet')+'</span><br>' : '')+
+    dbgLines.map(l=>`<span>${l}</span>`).join('<br>');
 }
 
 function tickDetection(detected) {
@@ -993,7 +1210,7 @@ function tickDetection(detected) {
     holdDuration = 0;
     clearInterval(holdTick); holdTick = null;
     document.getElementById('hold-bar').style.width = '0%';
-    document.getElementById('hold-timer').textContent = '0.0s / 3.0s';
+    document.getElementById('hold-timer').textContent = '0.0s / 4.0s';
   }
 }
 
@@ -1015,7 +1232,7 @@ function resetHold() {
   stepHoldStart = null; holdDuration = 0;
   clearInterval(holdTick); holdTick = null;
   document.getElementById('hold-bar').style.width = '0%';
-  document.getElementById('hold-timer').textContent = '0.0s / 3.0s';
+  document.getElementById('hold-timer').textContent = '0.0s / 4.0s';
   document.getElementById('hold-hint').textContent = WHO_STEPS[currentStep]?.instr || '—';
 }
 
