@@ -1,431 +1,432 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>OMAC Hand Hygiene Tool — S M Baqir</title>
+<title>OMAC Hand Hygiene Assessment — S M Baqir</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,400&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
-<script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
 <style>
 :root {
-  --bg-primary: #0a0c10;
-  --bg-secondary: #111318;
-  --bg-card: #161920;
-  --bg-glass: rgba(255,255,255,0.03);
+  --bg: #0b0d11;
+  --bg2: #12151b;
+  --bg3: #1a1d25;
   --border: rgba(255,255,255,0.07);
-  --border-accent: rgba(0,212,170,0.3);
-  --text-primary: #f0f2f5;
-  --text-secondary: #8b93a5;
-  --text-muted: #4a5268;
-  --accent: #00d4aa;
-  --accent-dim: rgba(0,212,170,0.12);
-  --accent-glow: rgba(0,212,170,0.25);
-  --success: #22c55e;
-  --success-bg: rgba(34,197,94,0.1);
-  --danger: #ef4444;
-  --danger-bg: rgba(239,68,68,0.1);
-  --warning: #f59e0b;
-  --warning-bg: rgba(245,158,11,0.1);
+  --accent: #00e5b4;
+  --accent2: rgba(0,229,180,0.12);
+  --accent3: rgba(0,229,180,0.25);
+  --text: #eef0f4;
+  --text2: #7e8799;
+  --text3: #3d4455;
+  --pass: #22c55e;
+  --pass-bg: rgba(34,197,94,0.1);
+  --fail: #ef4444;
+  --fail-bg: rgba(239,68,68,0.1);
+  --warn: #f59e0b;
   --blue: #3b82f6;
-  --blue-bg: rgba(59,130,246,0.1);
-  --font-display: 'Syne', sans-serif;
-  --font-body: 'DM Sans', sans-serif;
-  --radius: 12px;
-  --radius-lg: 18px;
-  --radius-xl: 24px;
-}
-[data-theme="light"] {
-  --bg-primary: #f0f2f7;
-  --bg-secondary: #e8eaf0;
-  --bg-card: #ffffff;
-  --bg-glass: rgba(0,0,0,0.02);
-  --border: rgba(0,0,0,0.08);
-  --border-accent: rgba(0,170,136,0.3);
-  --text-primary: #0f1117;
-  --text-secondary: #4a5268;
-  --text-muted: #9ba3b5;
-  --accent: #009f82;
-  --accent-dim: rgba(0,159,130,0.08);
-  --accent-glow: rgba(0,159,130,0.2);
-  --success: #16a34a;
-  --success-bg: rgba(22,163,74,0.08);
-  --danger: #dc2626;
-  --danger-bg: rgba(220,38,38,0.08);
-  --warning: #d97706;
-  --warning-bg: rgba(217,119,6,0.08);
-  --blue: #2563eb;
-  --blue-bg: rgba(37,99,235,0.08);
+  --r: 10px;
+  --r2: 16px;
+  --r3: 22px;
 }
 *{margin:0;padding:0;box-sizing:border-box;}
-body{font-family:var(--font-body);background:var(--bg-primary);color:var(--text-primary);min-height:100vh;overflow-x:hidden;transition:background 0.3s,color 0.3s;}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden;}
+body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
+  background:radial-gradient(ellipse 60% 40% at 50% 0%,rgba(0,229,180,0.06) 0%,transparent 70%);}
 
-/* GRID BACKGROUND */
-body::before{
-  content:'';position:fixed;inset:0;z-index:0;
-  background-image:linear-gradient(rgba(0,212,170,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(0,212,170,0.03) 1px,transparent 1px);
-  background-size:48px 48px;pointer-events:none;
-}
-[data-theme="light"] body::before{
-  background-image:linear-gradient(rgba(0,159,130,0.05) 1px,transparent 1px),linear-gradient(90deg,rgba(0,159,130,0.05) 1px,transparent 1px);
-}
+/* TOPBAR */
+.topbar{position:fixed;top:0;left:0;right:0;z-index:100;height:58px;
+  background:rgba(11,13,17,0.9);backdrop-filter:blur(18px);
+  border-bottom:1px solid var(--border);display:flex;align-items:center;
+  justify-content:space-between;padding:0 1.5rem;}
+.brand{display:flex;align-items:center;gap:10px;}
+.brand-mark{width:32px;height:32px;border-radius:8px;background:var(--accent);
+  display:flex;align-items:center;justify-content:center;font-size:16px;}
+.brand-name{font-family:'Syne',sans-serif;font-weight:800;font-size:.9rem;letter-spacing:-.01em;}
+.brand-name span{color:var(--accent);}
+.brand-sub{font-size:.65rem;color:var(--text2);letter-spacing:.06em;text-transform:uppercase;margin-top:1px;}
+.who-tag{background:var(--accent2);border:1px solid var(--accent3);border-radius:5px;
+  padding:3px 10px;font-size:.65rem;font-weight:600;color:var(--accent);letter-spacing:.07em;text-transform:uppercase;}
 
-/* HEADER */
-header{
-  position:sticky;top:0;z-index:100;
-  background:rgba(10,12,16,0.85);backdrop-filter:blur(20px);
-  border-bottom:1px solid var(--border);
-  padding:0 2rem;
-  display:flex;align-items:center;justify-content:space-between;height:64px;
-}
-[data-theme="light"] header{background:rgba(240,242,247,0.85);}
-.logo{display:flex;align-items:center;gap:14px;}
-.logo-icon{width:36px;height:36px;background:var(--accent);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:18px;}
-.logo-text{font-family:var(--font-display);font-weight:800;font-size:1rem;letter-spacing:-0.01em;}
-.logo-text span{color:var(--accent);}
-.logo-sub{font-size:0.7rem;color:var(--text-secondary);font-weight:400;letter-spacing:0.05em;text-transform:uppercase;}
-.header-right{display:flex;align-items:center;gap:12px;}
-.who-badge{background:var(--accent-dim);border:1px solid var(--border-accent);border-radius:6px;padding:4px 10px;font-size:0.7rem;font-weight:600;color:var(--accent);letter-spacing:0.06em;text-transform:uppercase;}
-.theme-btn{width:36px;height:36px;border-radius:8px;border:1px solid var(--border);background:var(--bg-glass);cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;transition:all 0.2s;color:var(--text-primary);}
-.theme-btn:hover{background:var(--accent-dim);border-color:var(--border-accent);}
+/* SCREENS */
+.screen{display:none;position:relative;z-index:1;padding-top:58px;min-height:100vh;}
+.screen.active{display:flex;align-items:center;justify-content:center;}
 
-/* MAIN LAYOUT */
-.container{position:relative;z-index:1;max-width:1400px;margin:0 auto;padding:1.5rem 2rem;}
+/* STEP 1: NAME */
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r3);
+  padding:2.5rem;width:100%;max-width:440px;position:relative;overflow:hidden;}
+.card::after{content:'';position:absolute;top:-80px;right:-80px;width:220px;height:220px;
+  border-radius:50%;background:var(--accent3);filter:blur(70px);pointer-events:none;}
+.card-icon{width:52px;height:52px;border-radius:14px;background:var(--accent2);
+  border:1px solid var(--accent3);display:flex;align-items:center;justify-content:center;
+  font-size:24px;margin-bottom:1.4rem;}
+.card-title{font-family:'Syne',sans-serif;font-weight:800;font-size:1.7rem;margin-bottom:.3rem;line-height:1.1;}
+.card-sub{color:var(--text2);font-size:.88rem;margin-bottom:1.8rem;line-height:1.5;}
+.field{margin-bottom:1.1rem;}
+.field label{display:block;font-size:.7rem;font-weight:600;text-transform:uppercase;
+  letter-spacing:.09em;color:var(--text2);margin-bottom:7px;}
+.field input{width:100%;padding:11px 14px;background:var(--bg3);border:1px solid var(--border);
+  border-radius:var(--r);font-family:'DM Sans',sans-serif;font-size:.92rem;color:var(--text);
+  outline:none;transition:border .2s,box-shadow .2s;}
+.field input:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent3);}
+.field input::placeholder{color:var(--text3);}
+.btn-primary{width:100%;padding:13px;background:var(--accent);border:none;border-radius:var(--r);
+  font-family:'Syne',sans-serif;font-weight:700;font-size:.95rem;color:#000;cursor:pointer;
+  transition:filter .15s,transform .15s;margin-top:.4rem;letter-spacing:.02em;}
+.btn-primary:hover{filter:brightness(1.08);transform:translateY(-1px);}
+.btn-primary:active{transform:translateY(0);}
+.btn-primary:disabled{opacity:.4;cursor:not-allowed;transform:none;}
 
-/* LOGIN SCREEN */
-#login-screen{
-  min-height:calc(100vh - 64px);display:flex;align-items:center;justify-content:center;
-}
-.login-card{
-  background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-xl);
-  padding:3rem;width:100%;max-width:460px;position:relative;overflow:hidden;
-}
-.login-card::before{
-  content:'';position:absolute;top:-60px;right:-60px;width:200px;height:200px;
-  border-radius:50%;background:var(--accent-glow);filter:blur(60px);pointer-events:none;
-}
-.login-title{font-family:var(--font-display);font-weight:800;font-size:1.8rem;margin-bottom:0.3rem;}
-.login-subtitle{color:var(--text-secondary);font-size:0.9rem;margin-bottom:2rem;}
-.form-group{margin-bottom:1.2rem;}
-.form-label{display:block;font-size:0.75rem;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-secondary);margin-bottom:8px;}
-.form-input{
-  width:100%;padding:12px 16px;background:var(--bg-secondary);border:1px solid var(--border);
-  border-radius:var(--radius);font-family:var(--font-body);font-size:0.95rem;color:var(--text-primary);
-  transition:all 0.2s;outline:none;
-}
-.form-input:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-glow);}
-.form-input::placeholder{color:var(--text-muted);}
-.start-btn{
-  width:100%;padding:14px;background:var(--accent);border:none;border-radius:var(--radius);
-  font-family:var(--font-display);font-weight:700;font-size:1rem;color:#000;cursor:pointer;
-  transition:all 0.2s;letter-spacing:0.02em;margin-top:0.5rem;
-}
-.start-btn:hover{filter:brightness(1.1);transform:translateY(-1px);}
-.start-btn:active{transform:translateY(0);}
-.who-steps-preview{
-  margin-top:2rem;padding-top:1.5rem;border-top:1px solid var(--border);
-  display:grid;grid-template-columns:1fr 1fr;gap:8px;
-}
-.step-preview-item{
-  display:flex;align-items:center;gap:8px;font-size:0.78rem;color:var(--text-secondary);
-  background:var(--bg-secondary);border-radius:8px;padding:8px 10px;
-}
-.step-num{width:20px;height:20px;border-radius:50%;background:var(--accent-dim);border:1px solid var(--border-accent);font-size:0.7rem;font-weight:700;color:var(--accent);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+/* STEP 2: MODE SELECTION */
+#screen-mode.screen{flex-direction:column;gap:2rem;}
+.mode-header{text-align:center;}
+.mode-header h1{font-family:'Syne',sans-serif;font-weight:800;font-size:1.9rem;margin-bottom:.4rem;}
+.mode-header p{color:var(--text2);font-size:.9rem;}
+.mode-cards{display:grid;grid-template-columns:1fr 1fr;gap:1rem;width:100%;max-width:600px;}
+.mode-card{background:var(--bg2);border:2px solid var(--border);border-radius:var(--r2);
+  padding:1.8rem 1.5rem;cursor:pointer;transition:border-color .2s,background .2s,transform .15s;
+  text-align:center;position:relative;overflow:hidden;}
+.mode-card:hover{border-color:var(--accent);background:var(--accent2);transform:translateY(-2px);}
+.mode-card.selected{border-color:var(--accent);background:var(--accent2);}
+.mode-card::before{content:'';position:absolute;inset:0;border-radius:var(--r2);
+  background:radial-gradient(circle at 50% 0%,var(--accent3),transparent 70%);opacity:0;transition:opacity .2s;}
+.mode-card:hover::before,.mode-card.selected::before{opacity:1;}
+.mode-emoji{font-size:2.8rem;margin-bottom:.8rem;display:block;}
+.mode-name{font-family:'Syne',sans-serif;font-weight:700;font-size:1rem;margin-bottom:.4rem;}
+.mode-desc{font-size:.75rem;color:var(--text2);line-height:1.5;}
+.mode-steps{margin-top:.8rem;font-size:.68rem;color:var(--accent);font-weight:600;
+  background:var(--accent2);border:1px solid var(--accent3);border-radius:5px;
+  padding:3px 8px;display:inline-block;}
+.mode-check{position:absolute;top:12px;right:12px;width:22px;height:22px;border-radius:50%;
+  background:var(--accent);display:flex;align-items:center;justify-content:center;
+  font-size:12px;opacity:0;transition:opacity .2s;}
+.mode-card.selected .mode-check{opacity:1;}
+#mode-next-btn{width:100%;max-width:600px;padding:14px;background:var(--accent);border:none;
+  border-radius:var(--r);font-family:'Syne',sans-serif;font-weight:700;font-size:.95rem;
+  color:#000;cursor:pointer;transition:filter .15s,transform .15s;opacity:.4;pointer-events:none;}
+#mode-next-btn.ready{opacity:1;pointer-events:all;}
+#mode-next-btn.ready:hover{filter:brightness(1.08);transform:translateY(-1px);}
 
-/* MAIN APP */
-#app-screen{display:none;}
-.app-grid{display:grid;grid-template-columns:1fr 380px;gap:1.5rem;align-items:start;}
+/* ASSESSMENT SCREEN */
+#screen-assess{align-items:flex-start;justify-content:flex-start;}
+.assess-layout{display:grid;grid-template-columns:1fr 360px;gap:1.2rem;
+  width:100%;max-width:1320px;margin:0 auto;padding:1.2rem 1.2rem 2rem;}
+@media(max-width:900px){.assess-layout{grid-template-columns:1fr;}}
 
-/* LEFT - CAMERA PANEL */
-.camera-panel{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-xl);overflow:hidden;}
-.camera-header{padding:1.2rem 1.5rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
-.camera-title{font-family:var(--font-display);font-weight:700;font-size:1rem;}
-.status-pill{display:flex;align-items:center;gap:6px;font-size:0.75rem;font-weight:500;border-radius:20px;padding:4px 12px;border:1px solid transparent;}
-.status-pill.ready{background:var(--success-bg);border-color:rgba(34,197,94,0.2);color:var(--success);}
-.status-pill.active{background:var(--accent-dim);border-color:var(--border-accent);color:var(--accent);}
-.status-pill.idle{background:var(--bg-secondary);color:var(--text-secondary);}
-.pulse-dot{width:7px;height:7px;border-radius:50%;background:currentColor;animation:pulse 1.5s infinite;}
-@keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.3;}}
-.camera-wrap{position:relative;aspect-ratio:4/3;background:#000;overflow:hidden;}
+.panel{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r2);}
+
+/* CAMERA PANEL */
+.cam-panel{}
+.cam-head{padding:1rem 1.2rem;border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;}
+.cam-head-title{font-family:'Syne',sans-serif;font-weight:700;font-size:.9rem;}
+.status-pill{display:flex;align-items:center;gap:5px;font-size:.7rem;font-weight:600;
+  border-radius:20px;padding:4px 10px;border:1px solid transparent;}
+.status-pill.idle{background:var(--bg3);color:var(--text2);}
+.status-pill.active{background:var(--accent2);border-color:var(--accent3);color:var(--accent);}
+.status-pill.ok{background:var(--pass-bg);border-color:rgba(34,197,94,.25);color:var(--pass);}
+.dot{width:6px;height:6px;border-radius:50%;background:currentColor;animation:blink 1.4s infinite;}
+@keyframes blink{0%,100%{opacity:1;}50%{opacity:.25;}}
+
+.cam-wrap{position:relative;aspect-ratio:16/9;background:#000;overflow:hidden;}
 video{width:100%;height:100%;object-fit:cover;display:block;transform:scaleX(-1);}
 #overlay-canvas{position:absolute;inset:0;width:100%;height:100%;transform:scaleX(-1);}
-.camera-placeholder{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;color:var(--text-muted);}
-.cam-icon{font-size:48px;opacity:0.3;}
-.camera-footer{padding:1rem 1.5rem;display:flex;gap:10px;}
-.cam-btn{flex:1;padding:10px;border-radius:var(--radius);border:1px solid var(--border);background:var(--bg-glass);color:var(--text-primary);font-family:var(--font-body);font-size:0.85rem;cursor:pointer;transition:all 0.2s;font-weight:500;}
-.cam-btn.primary{background:var(--accent);border-color:var(--accent);color:#000;font-weight:700;}
-.cam-btn:hover{filter:brightness(1.1);}
-.cam-btn:disabled{opacity:0.4;cursor:not-allowed;}
+.cam-ph{position:absolute;inset:0;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:10px;color:var(--text3);}
+.cam-ph-icon{font-size:40px;opacity:.4;}
 
-/* STEP GUIDE CARD */
-.current-step-card{
-  position:absolute;bottom:12px;left:12px;right:12px;
-  background:rgba(10,12,16,0.9);backdrop-filter:blur(12px);
-  border:1px solid var(--border-accent);border-radius:var(--radius);
-  padding:12px 16px;display:flex;align-items:center;gap:12px;
-}
-[data-theme="light"] .current-step-card{background:rgba(255,255,255,0.92);}
-.step-badge{width:40px;height:40px;border-radius:10px;background:var(--accent-dim);border:1px solid var(--border-accent);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;}
-.step-info{flex:1;min-width:0;}
-.step-label{font-size:0.68rem;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;color:var(--accent);margin-bottom:2px;}
-.step-name{font-family:var(--font-display);font-weight:700;font-size:0.95rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.step-instruction{font-size:0.75rem;color:var(--text-secondary);margin-top:1px;}
-.step-status-icon{font-size:24px;flex-shrink:0;}
+/* STEP HUD (overlay on camera) */
+.step-hud{position:absolute;bottom:10px;left:10px;right:10px;
+  background:rgba(11,13,17,.88);backdrop-filter:blur(10px);
+  border:1px solid var(--accent3);border-radius:var(--r);
+  padding:10px 14px;display:flex;align-items:center;gap:12px;}
+.hud-emoji{width:38px;height:38px;border-radius:9px;background:var(--accent2);
+  border:1px solid var(--accent3);display:flex;align-items:center;justify-content:center;
+  font-size:19px;flex-shrink:0;}
+.hud-info{flex:1;min-width:0;}
+.hud-label{font-size:.63rem;font-weight:600;text-transform:uppercase;letter-spacing:.09em;color:var(--accent);}
+.hud-name{font-family:'Syne',sans-serif;font-weight:700;font-size:.88rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.hud-instr{font-size:.7rem;color:var(--text2);margin-top:1px;}
+.hud-status{font-size:20px;flex-shrink:0;}
+
+.cam-footer{padding:.8rem 1.2rem;display:flex;gap:8px;}
+.cbtn{flex:1;padding:9px;border-radius:var(--r);border:1px solid var(--border);
+  background:rgba(255,255,255,.03);color:var(--text);font-family:'DM Sans',sans-serif;
+  font-size:.8rem;cursor:pointer;transition:all .15s;font-weight:500;}
+.cbtn.pri{background:var(--accent);border-color:var(--accent);color:#000;font-weight:700;}
+.cbtn:hover:not(:disabled){filter:brightness(1.1);}
+.cbtn:disabled{opacity:.35;cursor:not-allowed;}
+
+/* HOLD BAR */
+.hold-section{padding:0 1.2rem 1rem;}
+.hold-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;}
+.hold-hd-l{font-size:.72rem;color:var(--text2);display:flex;align-items:center;gap:6px;}
+.hold-timer{font-family:'DM Mono',monospace;font-weight:500;font-size:.88rem;color:var(--accent);}
+.hold-track{height:5px;background:var(--bg3);border-radius:3px;overflow:hidden;}
+.hold-bar{height:100%;border-radius:3px;background:var(--accent);width:0%;transition:width .1s linear;}
 
 /* RIGHT PANEL */
-.right-panel{display:flex;flex-direction:column;gap:1rem;}
+.right-col{display:flex;flex-direction:column;gap:1rem;}
 
-/* USER INFO */
-.user-card{
-  background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);
-  padding:1.2rem 1.5rem;display:flex;align-items:center;gap:14px;
-}
-.avatar{width:44px;height:44px;border-radius:50%;background:var(--accent-dim);border:2px solid var(--border-accent);display:flex;align-items:center;justify-content:center;font-family:var(--font-display);font-weight:800;font-size:1.1rem;color:var(--accent);flex-shrink:0;}
-.user-info{flex:1;}
-.user-name{font-family:var(--font-display);font-weight:700;font-size:1rem;}
-.user-meta{font-size:0.78rem;color:var(--text-secondary);margin-top:2px;}
-.session-time{font-size:0.72rem;color:var(--text-muted);font-weight:500;text-align:right;}
+.user-strip{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r2);
+  padding:1rem 1.2rem;display:flex;align-items:center;gap:12px;}
+.avatar{width:40px;height:40px;border-radius:50%;background:var(--accent2);
+  border:2px solid var(--accent3);display:flex;align-items:center;justify-content:center;
+  font-family:'Syne',sans-serif;font-weight:800;font-size:.95rem;color:var(--accent);flex-shrink:0;}
+.user-name{font-family:'Syne',sans-serif;font-weight:700;font-size:.92rem;}
+.user-meta{font-size:.72rem;color:var(--text2);margin-top:2px;}
+.user-mode-badge{margin-left:auto;padding:3px 9px;border-radius:5px;font-size:.65rem;
+  font-weight:600;text-transform:uppercase;letter-spacing:.07em;}
+.badge-wash{background:rgba(59,130,246,.15);border:1px solid rgba(59,130,246,.3);color:var(--blue);}
+.badge-rub{background:var(--accent2);border:1px solid var(--accent3);color:var(--accent);}
 
-/* PROGRESS CARD */
-.progress-card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:1.5rem;}
-.section-label{font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-muted);margin-bottom:1rem;}
-.overall-score{display:flex;align-items:baseline;gap:8px;margin-bottom:1rem;}
-.score-number{font-family:var(--font-display);font-weight:800;font-size:2.8rem;line-height:1;color:var(--accent);}
-.score-denom{font-size:1rem;color:var(--text-muted);}
-.score-label{font-size:0.8rem;color:var(--text-secondary);margin-left:auto;}
-.progress-track{height:8px;background:var(--bg-secondary);border-radius:4px;overflow:hidden;margin-bottom:1.2rem;}
-.progress-fill{height:100%;border-radius:4px;background:var(--accent);transition:width 0.5s cubic-bezier(0.4,0,0.2,1);}
-.steps-list{display:flex;flex-direction:column;gap:8px;}
-.step-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:var(--radius);border:1px solid var(--border);background:var(--bg-secondary);transition:all 0.3s;}
-.step-item.active{background:var(--accent-dim);border-color:var(--border-accent);}
-.step-item.passed{background:var(--success-bg);border-color:rgba(34,197,94,0.2);}
-.step-item.failed{background:var(--danger-bg);border-color:rgba(239,68,68,0.2);}
-.step-circle{width:28px;height:28px;border-radius:50%;border:1.5px solid var(--border);background:var(--bg-card);display:flex;align-items:center;justify-content:center;font-size:0.75rem;font-weight:700;color:var(--text-muted);flex-shrink:0;transition:all 0.3s;}
-.step-item.active .step-circle{border-color:var(--accent);color:var(--accent);background:var(--accent-dim);}
-.step-item.passed .step-circle{border-color:var(--success);background:var(--success);color:#fff;}
-.step-item.failed .step-circle{border-color:var(--danger);background:var(--danger);color:#fff;}
-.step-text{flex:1;}
-.step-name-sm{font-size:0.82rem;font-weight:600;}
-.step-desc{font-size:0.7rem;color:var(--text-secondary);margin-top:1px;}
-.step-result{font-size:0.75rem;font-weight:700;}
-.step-item.passed .step-result{color:var(--success);}
-.step-item.failed .step-result{color:var(--danger);}
-.step-item.active .step-result{color:var(--accent);}
-
-/* TIMER */
-.timer-card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:1.2rem 1.5rem;}
-.timer-row{display:flex;align-items:center;justify-content:space-between;}
-.timer-val{font-family:var(--font-display);font-weight:800;font-size:2rem;color:var(--accent);letter-spacing:-0.02em;}
-.hold-bar-wrap{margin-top:10px;}
-.hold-label{font-size:0.7rem;color:var(--text-secondary);margin-bottom:6px;display:flex;justify-content:space-between;}
-.hold-track{height:6px;background:var(--bg-secondary);border-radius:3px;overflow:hidden;}
-.hold-fill{height:100%;border-radius:3px;background:var(--accent);transition:width 0.1s linear;}
+/* STEPS LIST */
+.steps-panel{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r2);padding:1.2rem;}
+.panel-label{font-size:.67rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;
+  color:var(--text3);margin-bottom:.9rem;}
+.progress-row{display:flex;align-items:baseline;gap:6px;margin-bottom:.6rem;}
+.score-big{font-family:'Syne',sans-serif;font-weight:800;font-size:2.4rem;line-height:1;color:var(--accent);}
+.score-den{font-size:.9rem;color:var(--text3);}
+.score-pct{font-size:.78rem;color:var(--text2);margin-left:auto;}
+.prog-track{height:6px;background:var(--bg3);border-radius:3px;overflow:hidden;margin-bottom:1rem;}
+.prog-fill{height:100%;border-radius:3px;background:var(--accent);width:0%;transition:width .5s ease;}
+.steps-ul{display:flex;flex-direction:column;gap:6px;}
+.s-item{display:flex;align-items:center;gap:9px;padding:9px 11px;border-radius:var(--r);
+  border:1px solid var(--border);background:var(--bg3);transition:all .3s;}
+.s-item.active{background:var(--accent2);border-color:var(--accent3);}
+.s-item.pass{background:var(--pass-bg);border-color:rgba(34,197,94,.2);}
+.s-item.fail{background:var(--fail-bg);border-color:rgba(239,68,68,.2);}
+.s-circle{width:26px;height:26px;border-radius:50%;border:1.5px solid var(--border);
+  background:var(--bg2);display:flex;align-items:center;justify-content:center;
+  font-size:.72rem;font-weight:700;color:var(--text3);flex-shrink:0;transition:all .3s;}
+.s-item.active .s-circle{border-color:var(--accent);color:var(--accent);background:var(--accent2);}
+.s-item.pass .s-circle{border-color:var(--pass);background:var(--pass);color:#fff;}
+.s-item.fail .s-circle{border-color:var(--fail);background:var(--fail);color:#fff;}
+.s-name{flex:1;font-size:.78rem;font-weight:600;}
+.s-res{font-size:.72rem;font-weight:700;}
+.s-item.pass .s-res{color:var(--pass);}
+.s-item.fail .s-res{color:var(--fail);}
+.s-item.active .s-res{color:var(--accent);}
 
 /* LOG */
-.log-card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:1.2rem 1.5rem;}
-.log-list{max-height:160px;overflow-y:auto;display:flex;flex-direction:column;gap:6px;margin-top:0.5rem;}
-.log-list::-webkit-scrollbar{width:4px;}
-.log-list::-webkit-scrollbar-track{background:var(--bg-secondary);}
-.log-list::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
-.log-entry{display:flex;align-items:flex-start;gap:8px;font-size:0.73rem;padding:7px 10px;border-radius:8px;background:var(--bg-secondary);}
-.log-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;margin-top:3px;}
-.log-dot.pass{background:var(--success);}
-.log-dot.fail{background:var(--danger);}
-.log-dot.info{background:var(--accent);}
-.log-time{color:var(--text-muted);flex-shrink:0;font-variant-numeric:tabular-nums;}
-.log-msg{color:var(--text-secondary);}
+.log-panel{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r2);padding:1.2rem;}
+.log-inner{max-height:130px;overflow-y:auto;display:flex;flex-direction:column;gap:5px;margin-top:.5rem;}
+.log-inner::-webkit-scrollbar{width:3px;}
+.log-inner::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
+.log-row{display:flex;align-items:flex-start;gap:7px;font-size:.69rem;
+  padding:6px 9px;border-radius:7px;background:var(--bg3);}
+.ldot{width:6px;height:6px;border-radius:50%;flex-shrink:0;margin-top:2px;}
+.ldot.pass{background:var(--pass);}
+.ldot.fail{background:var(--fail);}
+.ldot.info{background:var(--accent);}
+.lt{color:var(--text3);flex-shrink:0;font-family:'DM Mono',monospace;font-size:.65rem;}
+.lm{color:var(--text2);}
 
-/* EXPORT */
-.export-btn{
-  width:100%;padding:12px;border-radius:var(--radius);border:1px solid var(--border-accent);
-  background:var(--accent-dim);color:var(--accent);font-family:var(--font-display);font-weight:700;
-  font-size:0.9rem;cursor:pointer;transition:all 0.2s;letter-spacing:0.03em;
-}
-.export-btn:hover{background:var(--accent-glow);}
+.export-btn{width:100%;padding:11px;border-radius:var(--r);border:1px solid var(--accent3);
+  background:var(--accent2);color:var(--accent);font-family:'Syne',sans-serif;font-weight:700;
+  font-size:.85rem;cursor:pointer;transition:all .15s;letter-spacing:.03em;}
+.export-btn:hover{background:var(--accent3);}
 
 /* RESULT OVERLAY */
-#result-overlay{
-  position:fixed;inset:0;z-index:200;background:rgba(0,0,0,0.8);backdrop-filter:blur(10px);
-  display:none;align-items:center;justify-content:center;
-}
-.result-card{
-  background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-xl);
-  padding:3rem;max-width:500px;width:90%;text-align:center;position:relative;overflow:hidden;
-}
-.result-card::before{content:'';position:absolute;top:-80px;left:50%;transform:translateX(-50%);width:250px;height:250px;border-radius:50%;pointer-events:none;}
-.result-card.all-pass::before{background:rgba(34,197,94,0.15);filter:blur(60px);}
-.result-card.some-fail::before{background:rgba(239,68,68,0.12);filter:blur(60px);}
-.result-icon{font-size:64px;margin-bottom:1rem;}
-.result-title{font-family:var(--font-display);font-weight:800;font-size:2rem;margin-bottom:0.5rem;}
-.result-subtitle{color:var(--text-secondary);margin-bottom:2rem;}
-.result-stats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:2rem;}
-.stat-box{background:var(--bg-secondary);border-radius:var(--radius);padding:1rem;}
-.stat-val{font-family:var(--font-display);font-weight:800;font-size:1.6rem;}
-.stat-lbl{font-size:0.7rem;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.06em;margin-top:2px;}
-.result-actions{display:flex;gap:10px;}
-.result-btn{flex:1;padding:12px;border-radius:var(--radius);border:1px solid var(--border);background:var(--bg-secondary);color:var(--text-primary);font-family:var(--font-display);font-weight:700;font-size:0.9rem;cursor:pointer;transition:all 0.2s;}
-.result-btn.accent{background:var(--accent);border-color:var(--accent);color:#000;}
-.result-btn:hover{filter:brightness(1.1);}
+#result-overlay{position:fixed;inset:0;z-index:500;
+  background:rgba(0,0,0,.85);backdrop-filter:blur(12px);
+  display:none;align-items:center;justify-content:center;}
+#result-overlay.show{display:flex;}
+.result-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r3);
+  padding:2.5rem;max-width:480px;width:90%;text-align:center;position:relative;overflow:hidden;}
+.result-card::before{content:'';position:absolute;top:-60px;left:50%;transform:translateX(-50%);
+  width:240px;height:240px;border-radius:50%;filter:blur(60px);pointer-events:none;}
+.result-card.allpass::before{background:rgba(34,197,94,.15);}
+.result-card.somefail::before{background:rgba(239,68,68,.12);}
+.res-icon{font-size:56px;margin-bottom:.8rem;}
+.res-title{font-family:'Syne',sans-serif;font-weight:800;font-size:1.8rem;margin-bottom:.3rem;}
+.res-sub{color:var(--text2);font-size:.85rem;margin-bottom:.4rem;}
 
-/* SKELETON/HAND CONNECTIONS drawn in canvas */
+/* BIG PERCENTAGE */
+.res-pct-ring{margin:1.5rem auto;width:140px;height:140px;position:relative;}
+.res-pct-ring svg{position:absolute;inset:0;transform:rotate(-90deg);}
+.res-pct-val{position:absolute;inset:0;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;}
+.res-pct-num{font-family:'Syne',sans-serif;font-weight:800;font-size:2.4rem;line-height:1;}
+.res-pct-label{font-size:.65rem;text-transform:uppercase;letter-spacing:.08em;color:var(--text2);margin-top:2px;}
 
-/* RESPONSIVE */
-@media(max-width:900px){
-  .app-grid{grid-template-columns:1fr;}
-  .container{padding:1rem;}
-}
+.res-stats{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:1.5rem;}
+.stat-box{background:var(--bg3);border-radius:var(--r);padding:.9rem;}
+.stat-val{font-family:'Syne',sans-serif;font-weight:800;font-size:1.5rem;}
+.stat-lbl{font-size:.65rem;text-transform:uppercase;letter-spacing:.07em;color:var(--text2);margin-top:2px;}
+
+/* step breakdown in result */
+.res-steps{margin-bottom:1.5rem;display:flex;flex-direction:column;gap:6px;}
+.res-step-row{display:flex;align-items:center;gap:8px;padding:8px 10px;
+  border-radius:8px;font-size:.78rem;text-align:left;}
+.res-step-row.pass{background:var(--pass-bg);}
+.res-step-row.fail{background:var(--fail-bg);}
+.res-step-tick{font-size:14px;flex-shrink:0;}
+.res-step-name{flex:1;font-weight:600;}
+.res-step-dur{font-size:.68rem;color:var(--text2);font-family:'DM Mono',monospace;}
+
+.res-actions{display:flex;gap:8px;}
+.rbtn{flex:1;padding:11px;border-radius:var(--r);border:1px solid var(--border);
+  background:var(--bg3);color:var(--text);font-family:'Syne',sans-serif;
+  font-weight:700;font-size:.82rem;cursor:pointer;transition:all .15s;}
+.rbtn.acc{background:var(--accent);border-color:var(--accent);color:#000;}
+.rbtn:hover{filter:brightness(1.1);}
+
+/* DETECTION FEEDBACK OVERLAY */
+.det-overlay{position:absolute;top:10px;left:10px;
+  background:rgba(11,13,17,.8);backdrop-filter:blur(8px);
+  border:1px solid var(--border);border-radius:8px;
+  padding:6px 10px;font-size:.68rem;color:var(--text2);
+  font-family:'DM Mono',monospace;max-width:220px;line-height:1.5;}
+.det-overlay span.ok{color:var(--pass);}
+.det-overlay span.no{color:var(--fail);}
 </style>
 </head>
 <body>
 
-<header>
-  <div class="logo">
-    <div class="logo-icon">🧴</div>
+<div class="topbar">
+  <div class="brand">
+    <div class="brand-mark">🧴</div>
     <div>
-      <div class="logo-text"><span>OMAC</span> Hand Hygiene Tool</div>
-      <div class="logo-sub">by S M Baqir &nbsp;·&nbsp; WHO 6-Step Protocol</div>
+      <div class="brand-name"><span>OMAC</span> Hand Hygiene</div>
+      <div class="brand-sub">by S M Baqir · WHO Protocol</div>
     </div>
   </div>
-  <div class="header-right">
-    <div class="who-badge">OMAC by S M Baqir</div>
-    <button class="theme-btn" onclick="toggleTheme()" title="Toggle theme" id="theme-btn">🌙</button>
-  </div>
-</header>
+  <div class="who-tag">WHO Compliant</div>
+</div>
 
-<!-- LOGIN -->
-<div id="login-screen">
-  <div class="container" style="width:100%;">
-    <div class="login-card">
-      <div class="login-title">Welcome</div>
-      <div class="login-subtitle">Please identify yourself to begin the WHO Hand Hygiene Assessment</div>
-      <div class="form-group">
-        <label class="form-label">Full Name</label>
-        <input class="form-input" id="user-name" type="text" placeholder="Enter your full name" autocomplete="name">
-      </div>
-      <div class="form-group">
-        <label class="form-label">Employee / Staff Code</label>
-        <input class="form-input" id="emp-code" type="text" placeholder="e.g. EMP-0042" autocomplete="off">
-      </div>
-      <div class="form-group">
-        <label class="form-label">Department</label>
-        <input class="form-input" id="dept" type="text" placeholder="e.g. ICU, OT, Ward B" autocomplete="off">
-      </div>
-      <button class="start-btn" onclick="startSession()">Start Assessment →</button>
-      <div class="who-steps-preview">
-        <div class="step-preview-item"><div class="step-num">1</div>Palm to Palm</div>
-        <div class="step-preview-item"><div class="step-num">2</div>Interlaced Fingers</div>
-        <div class="step-preview-item"><div class="step-num">3</div>Back of Fingers</div>
-        <div class="step-preview-item"><div class="step-num">4</div>Rotational Thumbs</div>
-        <div class="step-preview-item"><div class="step-num">5</div>Fingertip Scrub</div>
-        <div class="step-preview-item"><div class="step-num">6</div>Wrist Rotation</div>
-      </div>
+<!-- SCREEN 1: NAME ENTRY -->
+<div id="screen-name" class="screen active">
+  <div class="card">
+    <div class="card-icon">👤</div>
+    <div class="card-title">Identify Yourself</div>
+    <div class="card-sub">Enter your details to begin the WHO Hand Hygiene Compliance Assessment</div>
+    <div class="field">
+      <label>Full Name</label>
+      <input id="inp-name" type="text" placeholder="e.g. Dr. Ayesha Khan" autocomplete="name">
     </div>
+    <div class="field">
+      <label>Employee / Staff Code</label>
+      <input id="inp-code" type="text" placeholder="e.g. ICU-042" autocomplete="off">
+    </div>
+    <div class="field">
+      <label>Department</label>
+      <input id="inp-dept" type="text" placeholder="e.g. ICU, OT, Ward B">
+    </div>
+    <button class="btn-primary" onclick="goToMode()">Continue to Mode Selection →</button>
   </div>
 </div>
 
-<!-- MAIN APP -->
-<div id="app-screen">
-  <div class="container">
-    <div class="app-grid">
+<!-- SCREEN 2: MODE SELECTION -->
+<div id="screen-mode" class="screen">
+  <div class="mode-header">
+    <h1>Select Hygiene Mode</h1>
+    <p>Choose the procedure you will be assessed on</p>
+  </div>
+  <div class="mode-cards">
+    <div class="mode-card" id="card-rub" onclick="selectMode('rub')">
+      <div class="mode-check">✓</div>
+      <span class="mode-emoji">💊</span>
+      <div class="mode-name">Hand Rub</div>
+      <div class="mode-desc">Alcohol-based hand rub technique. No water needed. 6 WHO steps assessed in real-time.</div>
+      <div class="mode-steps">6 Steps · ~30 sec</div>
+    </div>
+    <div class="mode-card" id="card-wash" onclick="selectMode('wash')">
+      <div class="mode-check">✓</div>
+      <span class="mode-emoji">🚿</span>
+      <div class="mode-name">Hand Wash</div>
+      <div class="mode-desc">Soap and water technique. 6 core rubbing steps assessed (excluding rinse/dry). Show hands to cam.</div>
+      <div class="mode-steps">6 Steps · ~60 sec</div>
+    </div>
+  </div>
+  <button id="mode-next-btn" onclick="startAssessment()">Begin Assessment →</button>
+</div>
 
-      <!-- CAMERA -->
-      <div class="camera-panel">
-        <div class="camera-header">
-          <div class="camera-title">Live Camera Feed — Skeleton Tracking</div>
+<!-- SCREEN 3: ASSESSMENT -->
+<div id="screen-assess" class="screen">
+  <div class="assess-layout">
+
+    <!-- LEFT: CAMERA -->
+    <div>
+      <div class="panel cam-panel">
+        <div class="cam-head">
+          <div class="cam-head-title">Live Camera — Skeleton Tracking</div>
           <div class="status-pill idle" id="cam-status">
-            <span class="pulse-dot"></span>
-            <span id="cam-status-text">Initializing</span>
+            <span class="dot"></span>
+            <span id="cam-status-txt">Initializing</span>
           </div>
         </div>
-        <div class="camera-wrap">
+        <div class="cam-wrap">
           <video id="video" autoplay playsinline muted></video>
           <canvas id="overlay-canvas"></canvas>
-          <div class="camera-placeholder" id="cam-placeholder">
-            <div class="cam-icon">📷</div>
-            <div style="font-size:0.9rem;">Camera will appear here</div>
-            <div style="font-size:0.75rem;color:var(--text-muted);">Allow camera access when prompted</div>
+          <div class="det-overlay" id="det-debug" style="display:none"></div>
+          <div class="cam-ph" id="cam-ph">
+            <div class="cam-ph-icon">📷</div>
+            <div style="font-size:.82rem;">Camera will appear here</div>
+            <div style="font-size:.72rem;color:var(--text3);margin-top:4px;">Allow camera access when prompted</div>
           </div>
-          <div class="current-step-card" id="step-card" style="display:none;">
-            <div class="step-badge" id="sc-emoji">🤲</div>
-            <div class="step-info">
-              <div class="step-label" id="sc-label">Step 1 of 6</div>
-              <div class="step-name" id="sc-name">Loading...</div>
-              <div class="step-instruction" id="sc-instr">Follow the instruction</div>
+          <div class="step-hud" id="step-hud" style="display:none">
+            <div class="hud-emoji" id="hud-emoji">🤲</div>
+            <div class="hud-info">
+              <div class="hud-label" id="hud-label">Step 1 of 6</div>
+              <div class="hud-name" id="hud-name">—</div>
+              <div class="hud-instr" id="hud-instr">—</div>
             </div>
-            <div class="step-status-icon" id="sc-icon">⏳</div>
+            <div class="hud-status" id="hud-status">⏳</div>
           </div>
         </div>
-        <div class="camera-footer">
-          <button class="cam-btn primary" id="cam-start-btn" onclick="initCamera()">🎥 Start Camera</button>
-          <button class="cam-btn" id="cam-stop-btn" onclick="stopCamera()" disabled>⏹ Stop</button>
-          <button class="cam-btn" id="cam-restart-btn" onclick="restartSession()" disabled>↺ Restart</button>
+        <div class="hold-section">
+          <div class="hold-hd">
+            <div class="hold-hd-l">
+              <span id="hold-hint">Perform gesture shown above</span>
+            </div>
+            <div class="hold-timer" id="hold-timer">0.0s / 3.0s</div>
+          </div>
+          <div class="hold-track">
+            <div class="hold-bar" id="hold-bar"></div>
+          </div>
+        </div>
+        <div class="cam-footer">
+          <button class="cbtn pri" id="btn-startcam" onclick="initCamera()">🎥 Start Camera</button>
+          <button class="cbtn" id="btn-stopcam" onclick="stopCamera()" disabled>⏹ Stop</button>
+          <button class="cbtn" id="btn-restart" onclick="restartSession()" disabled>↺ Restart</button>
+          <button class="cbtn" id="btn-skip" onclick="skipStep()" disabled>Skip →</button>
         </div>
       </div>
+    </div>
 
-      <!-- RIGHT PANEL -->
-      <div class="right-panel">
+    <!-- RIGHT -->
+    <div class="right-col">
 
-        <!-- USER CARD -->
-        <div class="user-card">
-          <div class="avatar" id="user-avatar">?</div>
-          <div class="user-info">
-            <div class="user-name" id="display-name">—</div>
-            <div class="user-meta" id="display-meta">—</div>
-          </div>
-          <div class="session-time" id="session-clock">00:00</div>
+      <div class="user-strip">
+        <div class="avatar" id="disp-avatar">?</div>
+        <div>
+          <div class="user-name" id="disp-name">—</div>
+          <div class="user-meta" id="disp-meta">—</div>
         </div>
-
-        <!-- PROGRESS -->
-        <div class="progress-card">
-          <div class="section-label">Assessment Progress</div>
-          <div class="overall-score">
-            <div class="score-number" id="score-num">0</div>
-            <div class="score-denom">/ 6</div>
-            <div class="score-label" id="score-pct">0% Complete</div>
-          </div>
-          <div class="progress-track">
-            <div class="progress-fill" id="progress-fill" style="width:0%"></div>
-          </div>
-          <div class="steps-list" id="steps-list"></div>
-        </div>
-
-        <!-- TIMER -->
-        <div class="timer-card">
-          <div class="section-label">Current Step Timer</div>
-          <div class="timer-row">
-            <div>
-              <div style="font-size:0.75rem;color:var(--text-secondary);margin-bottom:2px;">Hold time</div>
-              <div class="timer-val" id="hold-timer">0.0s</div>
-            </div>
-            <div style="text-align:right;">
-              <div style="font-size:0.75rem;color:var(--text-secondary);margin-bottom:2px;">Required</div>
-              <div style="font-family:var(--font-display);font-weight:700;font-size:1.2rem;color:var(--text-muted);">3.0s</div>
-            </div>
-          </div>
-          <div class="hold-bar-wrap">
-            <div class="hold-label">
-              <span>Detecting gesture...</span>
-              <span id="hold-pct">0%</span>
-            </div>
-            <div class="hold-track">
-              <div class="hold-fill" id="hold-fill" style="width:0%"></div>
-            </div>
-          </div>
-        </div>
-
-        <!-- LOG -->
-        <div class="log-card">
-          <div class="section-label">Session Log</div>
-          <div class="log-list" id="log-list"></div>
-        </div>
-
-        <!-- EXPORT -->
-        <button class="export-btn" onclick="exportResults()">⬇ Export Results to Excel</button>
-
+        <div class="user-mode-badge" id="disp-mode-badge">—</div>
       </div>
+
+      <div class="steps-panel panel">
+        <div class="panel-label">Assessment Progress</div>
+        <div class="progress-row">
+          <div class="score-big" id="score-n">0</div>
+          <div class="score-den">/ 6</div>
+          <div class="score-pct" id="score-pct">0% done</div>
+        </div>
+        <div class="prog-track"><div class="prog-fill" id="prog-fill"></div></div>
+        <div class="steps-ul" id="steps-ul"></div>
+      </div>
+
+      <div class="log-panel panel">
+        <div class="panel-label">Session Log</div>
+        <div class="log-inner" id="log-inner"></div>
+      </div>
+
+      <button class="export-btn" onclick="exportExcel()">⬇ Export Full Report (Excel)</button>
+
     </div>
   </div>
 </div>
@@ -433,973 +434,818 @@ video{width:100%;height:100%;object-fit:cover;display:block;transform:scaleX(-1)
 <!-- RESULT OVERLAY -->
 <div id="result-overlay">
   <div class="result-card" id="result-card">
-    <div class="result-icon" id="result-icon">🏆</div>
-    <div class="result-title" id="result-title">Assessment Complete</div>
-    <div class="result-subtitle" id="result-subtitle">—</div>
-    <div class="result-stats">
-      <div class="stat-box">
-        <div class="stat-val" id="stat-pass" style="color:var(--success)">0</div>
-        <div class="stat-lbl">Passed</div>
-      </div>
-      <div class="stat-box">
-        <div class="stat-val" id="stat-fail" style="color:var(--danger)">0</div>
-        <div class="stat-lbl">Failed</div>
-      </div>
-      <div class="stat-box">
-        <div class="stat-val" id="stat-score" style="color:var(--accent)">0%</div>
-        <div class="stat-lbl">Score</div>
+    <div class="res-icon" id="res-icon">🏆</div>
+    <div class="res-title" id="res-title">Assessment Complete</div>
+    <div class="res-sub" id="res-sub">—</div>
+
+    <div class="res-pct-ring" id="pct-ring">
+      <svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="60" cy="60" r="52" fill="none" stroke="#1a1d25" stroke-width="10"/>
+        <circle id="ring-arc" cx="60" cy="60" r="52" fill="none" stroke="#00e5b4"
+          stroke-width="10" stroke-linecap="round"
+          stroke-dasharray="326.7" stroke-dashoffset="326.7"
+          style="transition:stroke-dashoffset 1.2s ease;"/>
+      </svg>
+      <div class="res-pct-val">
+        <div class="res-pct-num" id="res-pct-num">0%</div>
+        <div class="res-pct-label">Compliant</div>
       </div>
     </div>
-    <div class="result-actions">
-      <button class="result-btn accent" onclick="exportResults();closeResult()">Export Excel</button>
-      <button class="result-btn" onclick="restartSession()">Try Again</button>
-      <button class="result-btn" onclick="goToLogin()">New User</button>
+
+    <div class="res-stats">
+      <div class="stat-box">
+        <div class="stat-val" id="stat-pass" style="color:var(--pass)">0</div>
+        <div class="stat-lbl">Steps Passed</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-val" id="stat-fail" style="color:var(--fail)">0</div>
+        <div class="stat-lbl">Steps Failed</div>
+      </div>
+    </div>
+
+    <div class="res-steps" id="res-steps-list"></div>
+
+    <div class="res-actions">
+      <button class="rbtn acc" onclick="exportExcel();closeResult()">Export</button>
+      <button class="rbtn" onclick="restartSession()">Retry</button>
+      <button class="rbtn" onclick="goToLogin()">New User</button>
     </div>
   </div>
 </div>
 
 <script>
-// ─── DATA ───────────────────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════
+// OMAC HAND HYGIENE TOOL v2  —  FRONT-CAMERA AWARE ENGINE
+// S M Baqir
+//
+// KEY INSIGHT from the demo video:
+//   A front-facing (laptop) camera sees hands held UP toward the lens.
+//   The camera captures the EDGE of the hand — fingers appear as thin
+//   vertical rods, not flat palms. Fingertips point TOWARD the camera.
+//
+//   MediaPipe still tracks 21 landmarks correctly. The geometry rules
+//   we use are adapted for this front-view perspective:
+//
+//   - "Both hands present" replaces "hands horizontal"
+//   - Relative landmark positions (finger spread, wrist proximity,
+//     curl amount, thumb position) are the primary signals
+//   - MOTION is mandatory — static holds without rubbing motion DON'T pass
+//   - Motion is measured as oscillation (direction reversals) over ~30 frames
+// ══════════════════════════════════════════════════════════════
+
+// ─── WHO STEPS ──────────────────────────────────────────────────────────────
+// Same 6 steps for both hand wash and hand rub
 const WHO_STEPS = [
-  {
-    id:1, emoji:'🤲', name:'Palm to Palm',
-    instruction:'Hold hands flat toward cam — rub left & right',
-    detect: detectStep1, holdRequired: 3000
-  },
-  {
-    id:2, emoji:'🙌', name:'Interlaced Fingers',
-    instruction:'Mesh fingers together facing cam — rub up & down',
-    detect: detectStep2, holdRequired: 3000
-  },
-  {
-    id:3, emoji:'✋', name:'Back of Fingers',
-    instruction:'Flip one hand knuckles-to-cam, tips pointing down — rub laterally',
-    detect: detectStep3, holdRequired: 3000
-  },
-  {
-    id:4, emoji:'👍', name:'Rotational Thumbs',
-    instruction:'Hook thumb around opposite palm — rotate in circles',
-    detect: detectStep4, holdRequired: 3000
-  },
-  {
-    id:5, emoji:'🖐️', name:'Fingertip Scrub',
-    instruction:'Curl fingertips and rotate on opposite palm',
-    detect: detectStep5, holdRequired: 3000
-  },
-  {
-    id:6, emoji:'🔄', name:'Wrist Rotation',
-    instruction:'Clasp both wrists tightly — rotate one wrist',
-    detect: detectStep6, holdRequired: 3000
-  }
+  { id:1, emoji:'🤲', name:'Palm to Palm',
+    instr:'Face both open palms toward camera — rub left & right',
+    detect: detectStep1, hold:3000 },
+  { id:2, emoji:'🙌', name:'Interlaced Fingers',
+    instr:'Mesh fingers of both hands — rub up and down',
+    detect: detectStep2, hold:3000 },
+  { id:3, emoji:'✋', name:'Back of Fingers (Dorsum)',
+    instr:'Curl one hand knuckles-toward-cam — rub against other palm',
+    detect: detectStep3, hold:3000 },
+  { id:4, emoji:'👍', name:'Rotational Thumbs',
+    instr:'Hook thumb around opposite palm — rotate in circles',
+    detect: detectStep4, hold:3000 },
+  { id:5, emoji:'🖐️', name:'Fingertip Scrub',
+    instr:'Curl fingertips, rotate on opposite palm',
+    detect: detectStep5, hold:3000 },
+  { id:6, emoji:'🔄', name:'Wrist Rotation',
+    instr:'Clasp wrists together — rotate one wrist back and forth',
+    detect: detectStep6, hold:3000 },
 ];
 
-// ─── STATE ───────────────────────────────────────────────────────────────────
-let userData = {};
-let currentStep = 0;
-let stepResults = [];
-let stepStartTimes = {};
-let sessionStartDate = null;   // full Date object for audit
-let stepHoldStart = null;
-let holdDuration = 0;
-let sessionStart = null;
-let sessionTimer = null;
-let sessionLog = [];
-let handResults = null;
-let mediapipeReady = false;
-let cameraRunning = false;
-let mpHands = null;
-let mpCamera = null;
+// ─── STATE ──────────────────────────────────────────────────────────────────
+let userData = {}, selectedMode = null;
+let currentStep = 0, stepResults = [], stepStartTimes = {};
+let stepHoldStart = null, holdDuration = 0;
+let sessionStart = null, sessionStartDate = null;
+let stepPassed = false, cameraRunning = false;
+let sessionLog = [], lmHistory = [];
+let mpHands = null, mpCamera = null;
 let video, canvas, ctx;
-let lastLandmarks = null;
-let stepPassed = false;
+let clockInterval = null;
 
-// ─── THEME ───────────────────────────────────────────────────────────────────
-function toggleTheme() {
-  const html = document.documentElement;
-  const isDark = html.dataset.theme === 'dark';
-  html.dataset.theme = isDark ? 'light' : 'dark';
-  document.getElementById('theme-btn').textContent = isDark ? '🌙' : '☀️';
+// ─── NAVIGATION ─────────────────────────────────────────────────────────────
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
 }
 
-// ─── LOGIN ────────────────────────────────────────────────────────────────────
-function startSession() {
-  const name = document.getElementById('user-name').value.trim();
-  const code = document.getElementById('emp-code').value.trim();
-  const dept = document.getElementById('dept').value.trim();
-  if (!name || !code) { alert('Please enter your name and employee code.'); return; }
+function goToMode() {
+  const name = document.getElementById('inp-name').value.trim();
+  const code = document.getElementById('inp-code').value.trim();
+  if (!name || !code) { alert('Please enter your full name and employee code.'); return; }
+  const dept = document.getElementById('inp-dept').value.trim();
   const now = new Date();
-  sessionStartDate = now;
   userData = {
-    name, code, dept,
+    name, code, dept: dept || 'General',
     date: now.toLocaleDateString('en-GB'),
-    time: now.toLocaleTimeString([], { hour:'2-digit', minute:'2-digit', second:'2-digit' }),
-    dayOfWeek: now.toLocaleDateString('en-GB', { weekday: 'long' }),
-    month: now.toLocaleDateString('en-GB', { month: 'long' }),
+    time: now.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'}),
+    dayOfWeek: now.toLocaleDateString('en-GB',{weekday:'long'}),
+    month: now.toLocaleDateString('en-GB',{month:'long'}),
     year: now.getFullYear(),
     isoStart: now.toISOString(),
-    displayDate: now.toLocaleString('en-GB', { dateStyle:'full', timeStyle:'medium' })
+    displayDate: now.toLocaleString('en-GB',{dateStyle:'full',timeStyle:'medium'})
   };
-  document.getElementById('login-screen').style.display = 'none';
-  document.getElementById('app-screen').style.display = 'block';
-  document.getElementById('display-name').textContent = name;
-  document.getElementById('display-meta').textContent = `${code}  ·  ${dept || 'General'}`;
-  document.getElementById('user-avatar').textContent = name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+  showScreen('screen-mode');
+}
+
+function selectMode(mode) {
+  selectedMode = mode;
+  document.getElementById('card-rub').classList.toggle('selected', mode === 'rub');
+  document.getElementById('card-wash').classList.toggle('selected', mode === 'wash');
+  const btn = document.getElementById('mode-next-btn');
+  btn.classList.add('ready');
+}
+
+function startAssessment() {
+  if (!selectedMode) return;
+  const now = new Date();
+  sessionStartDate = now;
   sessionStart = Date.now();
-  stepStartTimes = {};
   stepStartTimes[0] = now;
+
+  // Populate user display
+  document.getElementById('disp-name').textContent = userData.name;
+  document.getElementById('disp-meta').textContent = `${userData.code} · ${userData.dept}`;
+  document.getElementById('disp-avatar').textContent =
+    userData.name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+
+  const badge = document.getElementById('disp-mode-badge');
+  if (selectedMode === 'wash') {
+    badge.textContent = '🚿 Hand Wash';
+    badge.className = 'user-mode-badge badge-wash';
+  } else {
+    badge.textContent = '💊 Hand Rub';
+    badge.className = 'user-mode-badge badge-rub';
+  }
+
   buildStepsList();
-  startSessionClock();
-  log('info', `Session started — ${userData.displayDate}`);
+  showScreen('screen-assess');
+  log('info', `Assessment started — ${selectedMode === 'wash' ? 'Hand Wash' : 'Hand Rub'} — ${userData.displayDate}`);
 }
 
-// ─── SESSION CLOCK ────────────────────────────────────────────────────────────
-function startSessionClock() {
-  sessionTimer = setInterval(() => {
-    const s = Math.floor((Date.now() - sessionStart) / 1000);
-    const m = Math.floor(s/60).toString().padStart(2,'0');
-    const sec = (s%60).toString().padStart(2,'0');
-    document.getElementById('session-clock').textContent = `${m}:${sec}`;
-  }, 1000);
+function goToLogin() {
+  closeResult(); stopCamera();
+  selectedMode = null; currentStep = 0; stepResults = [];
+  stepPassed = false; lmHistory = []; sessionLog = [];
+  document.getElementById('card-rub').classList.remove('selected');
+  document.getElementById('card-wash').classList.remove('selected');
+  document.getElementById('mode-next-btn').classList.remove('ready');
+  document.getElementById('log-inner').innerHTML = '';
+  if (clockInterval) clearInterval(clockInterval);
+  showScreen('screen-name');
 }
 
-// ─── STEPS LIST ────────────────────────────────────────────────────────────────
+// ─── STEPS LIST ─────────────────────────────────────────────────────────────
 function buildStepsList() {
-  const list = document.getElementById('steps-list');
-  list.innerHTML = '';
+  const ul = document.getElementById('steps-ul');
+  ul.innerHTML = '';
   WHO_STEPS.forEach((step, i) => {
     const div = document.createElement('div');
-    div.className = 'step-item' + (i === 0 ? ' active' : '');
-    div.id = `step-item-${i}`;
+    div.className = 'step-item s-item' + (i===0?' active':'');
+    div.id = `si-${i}`;
     div.innerHTML = `
-      <div class="step-circle" id="sc-${i}">${i+1}</div>
-      <div class="step-text">
-        <div class="step-name-sm">${step.emoji} ${step.name}</div>
-        <div class="step-desc">${step.instruction}</div>
-      </div>
-      <div class="step-result" id="sr-${i}"></div>
-    `;
-    list.appendChild(div);
+      <div class="step-circle s-circle" id="sc-${i}">${i+1}</div>
+      <div class="s-name">${step.emoji} ${step.name}</div>
+      <div class="s-res" id="sr-${i}"></div>`;
+    ul.appendChild(div);
   });
-  updateStepUI(0);
+  updateHUD(0);
 }
 
-function updateStepUI(idx) {
-  const step = WHO_STEPS[idx];
-  document.getElementById('sc-label').textContent = `Step ${idx+1} of 6`;
-  document.getElementById('sc-name').textContent = step.name;
-  document.getElementById('sc-instr').textContent = step.instruction;
-  document.getElementById('sc-emoji').textContent = step.emoji;
-  document.getElementById('sc-icon').textContent = '⏳';
-  document.getElementById('step-card').style.display = 'flex';
-  resetHoldBar();
+function updateHUD(idx) {
+  const s = WHO_STEPS[idx];
+  document.getElementById('hud-label').textContent = `Step ${idx+1} of 6`;
+  document.getElementById('hud-name').textContent = s.name;
+  document.getElementById('hud-instr').textContent = s.instr;
+  document.getElementById('hud-emoji').textContent = s.emoji;
+  document.getElementById('hud-status').textContent = '⏳';
+  document.getElementById('step-hud').style.display = 'flex';
+  resetHold();
 }
 
-// ─── CAMERA ────────────────────────────────────────────────────────────────────
+// ─── CAMERA ─────────────────────────────────────────────────────────────────
 async function initCamera() {
   video = document.getElementById('video');
   canvas = document.getElementById('overlay-canvas');
   ctx = canvas.getContext('2d');
-  setCamStatus('Requesting camera...', 'idle');
+  setCamStatus('Requesting camera...','idle');
   try {
-    const stream = await navigator.mediaDevices.getUserMedia({ video: { width:1280, height:720, facingMode:'user' }, audio:false });
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video:{width:1280,height:720,facingMode:'user'},audio:false});
     video.srcObject = stream;
     await video.play();
-    document.getElementById('cam-placeholder').style.display = 'none';
-    document.getElementById('cam-start-btn').disabled = true;
-    document.getElementById('cam-stop-btn').disabled = false;
-    document.getElementById('cam-restart-btn').disabled = false;
-    setCamStatus('Loading AI model...', 'idle');
+    document.getElementById('cam-ph').style.display = 'none';
+    document.getElementById('btn-startcam').disabled = true;
+    document.getElementById('btn-stopcam').disabled = false;
+    document.getElementById('btn-restart').disabled = false;
+    document.getElementById('btn-skip').disabled = false;
+    setCamStatus('Loading AI model...','idle');
     initMediaPipe();
     cameraRunning = true;
   } catch(e) {
-    setCamStatus('Camera denied', 'idle');
-    alert('Camera access was denied. Please allow camera and reload.');
+    setCamStatus('Camera denied','idle');
+    alert('Camera access denied. Please allow camera access and reload.');
   }
 }
 
 function stopCamera() {
-  if (video && video.srcObject) {
-    video.srcObject.getTracks().forEach(t => t.stop());
-    video.srcObject = null;
-  }
-  if (mpCamera) { try { mpCamera.stop(); } catch(e){} }
+  if (video?.srcObject) video.srcObject.getTracks().forEach(t=>t.stop());
+  if (mpCamera) try { mpCamera.stop(); } catch(e){}
   cameraRunning = false;
-  setCamStatus('Stopped', 'idle');
-  document.getElementById('cam-start-btn').disabled = false;
-  document.getElementById('cam-stop-btn').disabled = true;
+  setCamStatus('Stopped','idle');
+  document.getElementById('btn-startcam').disabled = false;
+  document.getElementById('btn-stopcam').disabled = true;
 }
 
-function setCamStatus(text, cls) {
+function setCamStatus(txt, cls) {
   const el = document.getElementById('cam-status');
   el.className = 'status-pill ' + cls;
-  document.getElementById('cam-status-text').textContent = text;
+  document.getElementById('cam-status-txt').textContent = txt;
 }
 
-// ─── MEDIAPIPE ────────────────────────────────────────────────────────────────
+// ─── MEDIAPIPE ───────────────────────────────────────────────────────────────
 function initMediaPipe() {
-  mpHands = new Hands({ locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}` });
-  mpHands.setOptions({ maxNumHands:2, modelComplexity:1, minDetectionConfidence:0.65, minTrackingConfidence:0.6 });
+  mpHands = new Hands({locateFile: f=>`https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}`});
+  mpHands.setOptions({
+    maxNumHands:2, modelComplexity:1,
+    minDetectionConfidence:0.6, minTrackingConfidence:0.55
+  });
   mpHands.onResults(onResults);
   mpCamera = new Camera(video, {
-    onFrame: async () => { if (cameraRunning) await mpHands.send({ image: video }); },
+    onFrame: async () => { if (cameraRunning) await mpHands.send({image:video}); },
     width:1280, height:720
   });
-  mpCamera.start().then(() => {
-    setCamStatus('Tracking Active', 'active');
-    mediapipeReady = true;
-  }).catch(() => setCamStatus('Model load failed', 'idle'));
+  mpCamera.start()
+    .then(()=>{ setCamStatus('Tracking Active','active'); })
+    .catch(()=>setCamStatus('Model load failed','idle'));
 }
 
-// ─── RESULTS CALLBACK ─────────────────────────────────────────────────────────
-function onResults(results) {
-  if (!canvas || !ctx) return;
-  canvas.width = video.videoWidth || 1280;
-  canvas.height = video.videoHeight || 720;
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-  handResults = results;
-  const hands = results.multiHandLandmarks || [];
-
-  // Always push to motion history buffer first
-  updateMotionHistory(hands);
-
-  // Draw skeleton
-  hands.forEach((lm, hi) => {
-    drawHandSkeleton(lm, hi);
-  });
-
-  if (currentStep < WHO_STEPS.length && !stepPassed) {
-    const step = WHO_STEPS[currentStep];
-    const detected = step.detect(hands);
-    updateHoldBar(detected);
-  }
-  lastLandmarks = hands.length > 0 ? hands : null;
-}
-
-// ─── SKELETON DRAWING ─────────────────────────────────────────────────────────
-const CONNECTIONS = [
-  [0,1],[1,2],[2,3],[3,4],          // thumb
-  [0,5],[5,6],[6,7],[7,8],          // index
-  [5,9],[9,10],[10,11],[11,12],     // middle
-  [9,13],[13,14],[14,15],[15,16],   // ring
-  [13,17],[17,18],[18,19],[19,20],  // pinky
-  [0,17]                            // palm edge
+// ─── SKELETON DRAWING ────────────────────────────────────────────────────────
+const CONN = [
+  [0,1],[1,2],[2,3],[3,4],
+  [0,5],[5,6],[6,7],[7,8],
+  [5,9],[9,10],[10,11],[11,12],
+  [9,13],[13,14],[14,15],[15,16],
+  [13,17],[17,18],[18,19],[19,20],
+  [0,17],[5,9],[9,13],[13,17]
 ];
 
-function drawHandSkeleton(lm, handIdx) {
-  const W = canvas.width, H = canvas.height;
-  const color1 = '#00d4aa', color2 = '#3b82f6';
-  const color = handIdx === 0 ? color1 : color2;
-  const dimColor = handIdx === 0 ? 'rgba(0,212,170,0.3)' : 'rgba(59,130,246,0.3)';
-
-  // Draw connections
-  ctx.lineWidth = 2;
-  CONNECTIONS.forEach(([a, b]) => {
-    const p1 = lm[a], p2 = lm[b];
+function drawSkeleton(lm, handIdx) {
+  const W=canvas.width, H=canvas.height;
+  const col = handIdx===0 ? '#00e5b4' : '#3b82f6';
+  const dim = handIdx===0 ? 'rgba(0,229,180,0.25)' : 'rgba(59,130,246,0.25)';
+  ctx.lineWidth=2;
+  CONN.forEach(([a,b])=>{
     ctx.beginPath();
-    ctx.moveTo(p1.x * W, p1.y * H);
-    ctx.lineTo(p2.x * W, p2.y * H);
-    ctx.strokeStyle = dimColor;
-    ctx.stroke();
+    ctx.moveTo(lm[a].x*W,lm[a].y*H);
+    ctx.lineTo(lm[b].x*W,lm[b].y*H);
+    ctx.strokeStyle=dim; ctx.globalAlpha=1; ctx.stroke();
+    ctx.strokeStyle=col; ctx.globalAlpha=0.55; ctx.lineWidth=1; ctx.stroke();
+    ctx.lineWidth=2; ctx.globalAlpha=1;
   });
-
-  // Glow connections
-  ctx.lineWidth = 1;
-  ctx.shadowBlur = 8;
-  ctx.shadowColor = color;
-  CONNECTIONS.forEach(([a, b]) => {
-    const p1 = lm[a], p2 = lm[b];
-    ctx.beginPath();
-    ctx.moveTo(p1.x * W, p1.y * H);
-    ctx.lineTo(p2.x * W, p2.y * H);
-    ctx.strokeStyle = color;
-    ctx.globalAlpha = 0.6;
-    ctx.stroke();
-  });
-  ctx.globalAlpha = 1;
-  ctx.shadowBlur = 0;
-
-  // Draw joints
-  lm.forEach((pt, i) => {
-    const x = pt.x * W, y = pt.y * H;
-    const isTip = [4,8,12,16,20].includes(i);
-    const r = isTip ? 6 : 4;
-    ctx.beginPath();
-    ctx.arc(x, y, r, 0, Math.PI * 2);
-    ctx.fillStyle = isTip ? color : '#fff';
-    ctx.shadowBlur = isTip ? 12 : 6;
-    ctx.shadowColor = color;
+  lm.forEach((pt,i)=>{
+    const r=[4,8,12,16,20].includes(i)?5.5:3.5;
+    ctx.beginPath(); ctx.arc(pt.x*W,pt.y*H,r,0,Math.PI*2);
+    ctx.fillStyle=[4,8,12,16,20].includes(i)?col:'#fff';
     ctx.fill();
-    ctx.strokeStyle = color;
-    ctx.lineWidth = 1.5;
-    ctx.stroke();
+    ctx.strokeStyle=col; ctx.lineWidth=1.2; ctx.stroke();
   });
-  ctx.shadowBlur = 0;
 }
 
-// ─── HOLD BAR LOGIC ───────────────────────────────────────────────────────────
-const STEP_HINTS = [
-  'Hold hands flat & horizontal toward cam — rub side to side',
-  'Mesh fingers together facing cam — rub up and down',
-  'Flip one hand (knuckles to cam, tips pointing down) — rub laterally',
-  'Hook thumb around opposite palm — rotate in circles',
-  'Curl fingertips and rotate them on opposite palm',
-  'Clasp both wrists tightly together — rotate one wrist'
-];
+// ─── HISTORY BUFFER ──────────────────────────────────────────────────────────
+const HIST_LEN = 35;
 
-let holdInterval = null;
-function updateHoldBar(detected) {
-  const hint = STEP_HINTS[currentStep] || 'Perform the gesture';
+function pushHistory(hands) {
+  lmHistory.push({ts:Date.now(),
+    hands: hands.map(h=>h.map(p=>({x:p.x,y:p.y,z:p.z})))});
+  if (lmHistory.length>HIST_LEN) lmHistory.shift();
+}
+
+// ─── MATH HELPERS ────────────────────────────────────────────────────────────
+const d2=(a,b)=>Math.sqrt((a.x-b.x)**2+(a.y-b.y)**2);
+const d3=(a,b)=>Math.sqrt((a.x-b.x)**2+(a.y-b.y)**2+(a.z-b.z)**2);
+const handW=lm=>d2(lm[5],lm[17]);
+const palmCtr=lm=>{
+  const idx=[0,5,9,13,17];
+  return{x:idx.reduce((s,i)=>s+lm[i].x,0)/5,
+         y:idx.reduce((s,i)=>s+lm[i].y,0)/5};
+};
+const avg=(arr,fn)=>arr.reduce((s,x)=>s+fn(x),0)/arr.length;
+
+// Motion analysis: direction reversals (oscillation) in recent frames
+function motionOf(handIdx, lmIdx) {
+  const frames=lmHistory.filter(f=>f.hands[handIdx]?.length>lmIdx);
+  if (frames.length<8) return {oscX:0,oscY:0,dist:0,rangeX:0,rangeY:0};
+  const pts=frames.map(f=>f.hands[handIdx][lmIdx]);
+  let dist=0,oscX=0,oscY=0,pdx=0,pdy=0;
+  const xs=pts.map(p=>p.x), ys=pts.map(p=>p.y);
+  for (let i=1;i<pts.length;i++){
+    const dx=pts[i].x-pts[i-1].x,dy=pts[i].y-pts[i-1].y;
+    dist+=Math.sqrt(dx*dx+dy*dy);
+    if (pdx!==0&&Math.sign(dx)!==Math.sign(pdx)) oscX++;
+    if (pdy!==0&&Math.sign(dy)!==Math.sign(pdy)) oscY++;
+    pdx=dx; pdy=dy;
+  }
+  return{oscX,oscY,dist,
+    rangeX:Math.max(...xs)-Math.min(...xs),
+    rangeY:Math.max(...ys)-Math.min(...ys)};
+}
+const palmMot=h=>motionOf(h,9);
+
+// ════════════════════════════════════════════════════════════════════════
+// FRONT-CAMERA DETECTION ENGINE v3
+//
+// What the front-facing webcam actually sees (per demo video):
+//
+// The candidate faces the laptop. Hands are raised, fingers point
+// TOWARD the lens. MediaPipe sees:
+//   - Wrist (lm 0) at BOTTOM of each hand silhouette
+//   - Fingertips (lm 4,8,12,16,20) at TOP or clustered near center
+//   - Z coordinate: near-zero (close to camera) for tips when facing cam
+//
+// Practical rules per step:
+//
+// STEP 1 Palm-to-Palm:
+//   Both hands facing cam, fingers spread open, hands side by side /
+//   overlapping. Tips spread wide. Moving laterally (X) together.
+//
+// STEP 2 Interlaced Fingers:
+//   Fingers meshed → combined tip-span wider than one hand.
+//   Hands close together. Vertical (Y) rubbing motion.
+//
+// STEP 3 Back of Fingers:
+//   ONE hand rotated so knuckles face cam → its MCP Z closer to cam
+//   than fingertip Z (knuckles forward). Or tips curled toward wrist.
+//   Lateral rubbing against the other open hand.
+//
+// STEP 4 Rotational Thumbs:
+//   Thumb tip (lm 4) of one hand is very close to opposite palm centre.
+//   Circular motion: oscillation in BOTH X and Y.
+//
+// STEP 5 Fingertip Scrub:
+//   Fingertips of one hand curl — distance from tip to MCP is small
+//   compared to handW. Rotational scrubbing: both X and Y oscillation.
+//
+// STEP 6 Wrist Rotation:
+//   Wrists (lm 0) of both hands very close to each other (clasped).
+//   One wrist sweeps a rotational arc: osc in X+Y combined >= 3.
+// ════════════════════════════════════════════════════════════════════════
+
+// Debug feedback object updated each frame
+let dbg = {};
+
+function detectStep1(hands) {
+  // Both hands open, facing cam, rubbing laterally
+  if (hands.length<2) { dbg.s1='need 2 hands'; return false; }
+  const h0=hands[0],h1=hands[1];
+  const hw=(handW(h0)+handW(h1))/2;
+
+  // Hands must be reasonably close to each other
+  const wDist=d2(h0[0],h1[0]);
+  if (wDist>hw*3.0) { dbg.s1='hands too far'; return false; }
+
+  // Both hands should have spread fingers (not curled)
+  // Tip-to-MCP distance on index: if > 0.5*handW the finger is fairly open
+  const openH0 = d2(h0[8],h0[5])>hw*0.4;
+  const openH1 = d2(h1[8],h1[5])>hw*0.4;
+  if (!openH0||!openH1) { dbg.s1='fingers not open'; return false; }
+
+  // Lateral (X) rubbing motion
+  const m0=palmMot(0), m1=palmMot(1);
+  const lat = m0.rangeX>0.03||m1.rangeX>0.03||m0.oscX>=2||m1.oscX>=2;
+  const moving = m0.dist>0.03||m1.dist>0.03;
+  dbg.s1=`lat=${lat} mov=${moving} wDist=${wDist.toFixed(2)}`;
+  return moving && lat;
+}
+
+function detectStep2(hands) {
+  // Interlaced fingers: combined tip span wider, vertical motion
+  if (hands.length<2) { dbg.s2='need 2 hands'; return false; }
+  const h0=hands[0],h1=hands[1];
+  const hw=(handW(h0)+handW(h1))/2;
+
+  // Palms close
+  const pc0=palmCtr(h0),pc1=palmCtr(h1);
+  if (d2(pc0,pc1)>hw*2.8) { dbg.s2='palms far'; return false; }
+
+  // Combined fingertip X-span > single hand (fingers interleaved side by side)
+  const allX=[8,12,16,20].map(i=>h0[i].x).concat([8,12,16,20].map(i=>h1[i].x));
+  const combSpan=Math.max(...allX)-Math.min(...allX);
+  const singleSpan=Math.max(handW(h0),handW(h1));
+  if (combSpan<singleSpan*1.05) { dbg.s2=`span too narrow ${combSpan.toFixed(2)}`; return false; }
+
+  // Vertical (Y) motion — squeezing / rubbing up-down
+  const m0=palmMot(0),m1=palmMot(1);
+  const vert = m0.rangeY>0.025||m1.rangeY>0.025||m0.oscY>=2||m1.oscY>=2;
+  const moving = m0.dist>0.03||m1.dist>0.03;
+  dbg.s2=`vert=${vert} span=${combSpan.toFixed(2)}`;
+  return moving && vert;
+}
+
+function detectStep3(hands) {
+  // Back of fingers: one hand curled (knuckles forward / tips toward wrist)
+  if (hands.length<2) { dbg.s3='need 2 hands'; return false; }
+  const h0=hands[0],h1=hands[1];
+
+  function isCurledOrDorsum(lm) {
+    const hw=handW(lm);
+    // Tips close to their own knuckles (MCP) → curled
+    const tipToMCP=[8,12,16,20].map((t,i)=>d2(lm[t],lm[[5,9,13,17][i]]));
+    const avgCurl=tipToMCP.reduce((s,v)=>s+v,0)/4;
+    // Z of knuckles closer to cam (lower Z in MediaPipe = closer)
+    const knuckleZ=[5,9,13,17].reduce((s,i)=>s+lm[i].z,0)/4;
+    const tipZ=[8,12,16,20].reduce((s,i)=>s+lm[i].z,0)/4;
+    const knucklesForward = knuckleZ < tipZ - 0.04;
+    return avgCurl < hw*0.65 || knucklesForward;
+  }
+
+  const curl0=isCurledOrDorsum(h0), curl1=isCurledOrDorsum(h1);
+  if (!curl0&&!curl1) { dbg.s3='no dorsum hand'; return false; }
+  if (curl0&&curl1) { dbg.s3='both curled'; return false; }
+
+  // Hands close
+  const hw=(handW(h0)+handW(h1))/2;
+  if (d2(h0[0],h1[0])>hw*2.5) { dbg.s3='hands far'; return false; }
+
+  // Lateral motion
+  const m0=palmMot(0),m1=palmMot(1);
+  const lat=m0.rangeX>0.025||m1.rangeX>0.025||m0.oscX>=2||m1.oscX>=2;
+  const moving=m0.dist>0.025||m1.dist>0.025;
+  dbg.s3=`curl0=${curl0} curl1=${curl1} lat=${lat}`;
+  return moving && lat;
+}
+
+function detectStep4(hands) {
+  // Rotational thumbs: thumb tip near opposite palm, circular motion
+  if (hands.length<2) { dbg.s4='need 2 hands'; return false; }
+  const h0=hands[0],h1=hands[1];
+  const hw=(handW(h0)+handW(h1))/2;
+
+  const pc0=palmCtr(h0),pc1=palmCtr(h1);
+  const t0nP1=d2(h0[4],pc1)<hw*1.4;
+  const t1nP0=d2(h1[4],pc0)<hw*1.4;
+  if (!t0nP1&&!t1nP0) { dbg.s4='thumb not near palm'; return false; }
+
+  // Wrists close
+  if (d2(h0[0],h1[0])>hw*2.8) { dbg.s4='wrists far'; return false; }
+
+  // Circular: both X and Y oscillation on the thumb hand
+  const thumbHand=t0nP1?0:1;
+  const tm=motionOf(thumbHand,4);
+  const circ=tm.oscX>=2&&tm.oscY>=2&&tm.dist>0.04;
+  dbg.s4=`thumb=${thumbHand} oscX=${tm.oscX} oscY=${tm.oscY} d=${tm.dist.toFixed(2)}`;
+  return circ;
+}
+
+function detectStep5(hands) {
+  // Fingertip scrub: one hand's tips curled (close to PIPs), rotational motion
+  if (hands.length<2) { dbg.s5='need 2 hands'; return false; }
+  const h0=hands[0],h1=hands[1];
+
+  function isCurledTips(lm) {
+    const hw=handW(lm);
+    // Tip to PIP distance
+    const tipToPIP=[8,12,16,20].map((t,i)=>d2(lm[t],lm[[7,11,15,19][i]]));
+    return tipToPIP.reduce((s,v)=>s+v,0)/4 < hw*0.55;
+  }
+
+  const c0=isCurledTips(h0), c1=isCurledTips(h1);
+  if (!c0&&!c1) { dbg.s5='no curled tips'; return false; }
+
+  const hw=(handW(h0)+handW(h1))/2;
+  if (d2(h0[0],h1[0])>hw*2.5) { dbg.s5='hands far'; return false; }
+
+  const scrubH=c0?0:1;
+  const sm=palmMot(scrubH);
+  const rot=sm.oscX>=2&&sm.oscY>=2&&sm.dist>0.035;
+  dbg.s5=`curled=${scrubH} osc=${sm.oscX}/${sm.oscY} d=${sm.dist.toFixed(2)}`;
+  return rot;
+}
+
+function detectStep6(hands) {
+  // Wrist clasp + rotation
+  if (hands.length<2) { dbg.s6='need 2 hands'; return false; }
+  const h0=hands[0],h1=hands[1];
+  const hw=(handW(h0)+handW(h1))/2;
+
+  // Wrists must be very close
+  const wdist=d2(h0[0],h1[0]);
+  if (wdist>hw*1.6) { dbg.s6=`wrists not clasped ${wdist.toFixed(2)}`; return false; }
+
+  // At least one hand's fingers should be pointing ≈ downward or lateral
+  // (i.e. wrist Y close to or below tip Y — wrist-clasp posture)
+  const tY0=avg([8,12,16,20].map(i=>h0[i].y),v=>v);
+  const tY1=avg([8,12,16,20].map(i=>h1[i].y),v=>v);
+  const clasp = tY0 > h0[0].y - 0.18 || tY1 > h1[0].y - 0.18;
+  if (!clasp) { dbg.s6='not clasp posture'; return false; }
+
+  // Wrist rotation arc
+  const wm0=motionOf(0,0),wm1=motionOf(1,0);
+  const rot=(wm0.oscX+wm0.oscY>=3&&wm0.dist>0.025)||(wm1.oscX+wm1.oscY>=3&&wm1.dist>0.025);
+  dbg.s6=`wdist=${wdist.toFixed(2)} rot=${rot}`;
+  return rot;
+}
+
+// ─── RESULTS CALLBACK ────────────────────────────────────────────────────────
+let holdTick = null;
+
+function onResults(results) {
+  if (!canvas||!ctx) return;
+  canvas.width=video.videoWidth||1280;
+  canvas.height=video.videoHeight||720;
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+
+  const hands=results.multiHandLandmarks||[];
+  pushHistory(hands);
+
+  // Draw skeletons
+  hands.forEach((lm,i) => drawSkeleton(lm,i));
+
+  // Update debug overlay
+  const det = document.getElementById('det-debug');
+  det.style.display = 'block';
+  det.innerHTML = `Hands: <span class="${hands.length>=2?'ok':'no'}">${hands.length}</span><br>
+    Step: ${currentStep+1}/6${currentStep<6?' — '+WHO_STEPS[currentStep].name:''}`;
+
+  // Detect current step
+  if (currentStep<WHO_STEPS.length && !stepPassed) {
+    const detected = WHO_STEPS[currentStep].detect(hands);
+    tickDetection(detected);
+  }
+}
+
+function tickDetection(detected) {
   if (detected) {
+    document.getElementById('hud-status').textContent = '✅';
+    document.getElementById('hold-hint').textContent = '✅ Gesture detected — hold steady…';
     if (!stepHoldStart) {
       stepHoldStart = Date.now();
-      holdInterval = setInterval(tickHold, 50);
+      holdTick = setInterval(doHoldTick, 60);
     }
-    document.querySelector('.hold-label span:first-child').textContent = '✅ Gesture detected — hold…';
   } else {
+    document.getElementById('hud-status').textContent = '⏳';
+    document.getElementById('hold-hint').textContent = WHO_STEPS[currentStep]?.instr || 'Perform the gesture';
     stepHoldStart = null;
     holdDuration = 0;
-    clearInterval(holdInterval);
-    holdInterval = null;
-    document.getElementById('hold-fill').style.width = '0%';
-    document.getElementById('hold-timer').textContent = '0.0s';
-    document.getElementById('hold-pct').textContent = '0%';
-    document.getElementById('sc-icon').textContent = '⏳';
-    document.querySelector('.hold-label span:first-child').textContent = hint;
+    clearInterval(holdTick); holdTick = null;
+    document.getElementById('hold-bar').style.width = '0%';
+    document.getElementById('hold-timer').textContent = '0.0s / 3.0s';
   }
 }
 
-function tickHold() {
+function doHoldTick() {
   if (!stepHoldStart) return;
   holdDuration = Date.now() - stepHoldStart;
-  const required = WHO_STEPS[currentStep].holdRequired;
-  const pct = Math.min(100, (holdDuration / required) * 100);
-  document.getElementById('hold-fill').style.width = pct + '%';
-  document.getElementById('hold-timer').textContent = (holdDuration/1000).toFixed(1) + 's';
-  document.getElementById('hold-pct').textContent = Math.round(pct) + '%';
-  document.getElementById('sc-icon').textContent = '✅';
-  if (holdDuration >= required) {
-    clearInterval(holdInterval);
-    holdInterval = null;
+  const req = WHO_STEPS[currentStep].hold;
+  const pct = Math.min(100, holdDuration/req*100);
+  document.getElementById('hold-bar').style.width = pct+'%';
+  document.getElementById('hold-timer').textContent =
+    `${(holdDuration/1000).toFixed(1)}s / 3.0s`;
+  if (holdDuration >= req) {
+    clearInterval(holdTick); holdTick = null;
     passStep();
   }
 }
 
-function resetHoldBar() {
-  stepHoldStart = null;
-  holdDuration = 0;
-  clearInterval(holdInterval);
-  holdInterval = null;
-  document.getElementById('hold-fill').style.width = '0%';
-  document.getElementById('hold-timer').textContent = '0.0s';
-  document.getElementById('hold-pct').textContent = '0%';
+function resetHold() {
+  stepHoldStart = null; holdDuration = 0;
+  clearInterval(holdTick); holdTick = null;
+  document.getElementById('hold-bar').style.width = '0%';
+  document.getElementById('hold-timer').textContent = '0.0s / 3.0s';
+  document.getElementById('hold-hint').textContent = WHO_STEPS[currentStep]?.instr || '—';
 }
 
-// ─── STEP PASS/FAIL ───────────────────────────────────────────────────────────
+// ─── PASS / FAIL / ADVANCE ───────────────────────────────────────────────────
 function passStep() {
   stepPassed = true;
   const step = WHO_STEPS[currentStep];
   const now = new Date();
-  const stepStarted = stepStartTimes[currentStep] || now;
-  const durationSec = ((now - stepStarted) / 1000).toFixed(1);
-  stepResults.push({
-    step: step.id,
-    name: step.name,
-    result: 'PASS',
-    date: now.toLocaleDateString('en-GB'),
-    time: now.toLocaleTimeString([], { hour:'2-digit', minute:'2-digit', second:'2-digit' }),
-    isoTimestamp: now.toISOString(),
-    dayOfWeek: now.toLocaleDateString('en-GB', { weekday: 'long' }),
-    durationSec
-  });
-  markStepItem(currentStep, 'passed', '✓ Pass');
-  document.getElementById('sc-icon').textContent = '✅';
-  log('pass', `Step ${step.id}: ${step.name} — PASSED (${durationSec}s)`);
+  const started = stepStartTimes[currentStep] || now;
+  const dur = ((now-started)/1000).toFixed(1);
+  stepResults.push({step:step.id,name:step.name,result:'PASS',
+    date:now.toLocaleDateString('en-GB'),
+    time:now.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'}),
+    iso:now.toISOString(),dur});
+  setStepUI(currentStep,'pass','✓');
+  document.getElementById('hud-status').textContent = '✅';
+  log('pass',`Step ${step.id} ${step.name} — PASSED (${dur}s)`);
   updateScore();
-  setTimeout(() => {
-    currentStep++;
-    stepPassed = false;
-    if (currentStep >= WHO_STEPS.length) { showResult(); return; }
-    stepStartTimes[currentStep] = new Date();
-    updateStepUI(currentStep);
-    markActiveStep(currentStep);
-  }, 1200);
+  setTimeout(advance, 1000);
 }
 
 function skipStep() {
+  if (currentStep>=WHO_STEPS.length) return;
   const step = WHO_STEPS[currentStep];
   const now = new Date();
-  const stepStarted = stepStartTimes[currentStep] || now;
-  const durationSec = ((now - stepStarted) / 1000).toFixed(1);
-  stepResults.push({
-    step: step.id,
-    name: step.name,
-    result: 'FAIL',
-    date: now.toLocaleDateString('en-GB'),
-    time: now.toLocaleTimeString([], { hour:'2-digit', minute:'2-digit', second:'2-digit' }),
-    isoTimestamp: now.toISOString(),
-    dayOfWeek: now.toLocaleDateString('en-GB', { weekday: 'long' }),
-    durationSec
-  });
-  markStepItem(currentStep, 'failed', '✗ Fail');
-  document.getElementById('sc-icon').textContent = '❌';
-  log('fail', `Step ${step.id}: ${step.name} — FAILED (${durationSec}s)`);
+  const started = stepStartTimes[currentStep] || now;
+  const dur = ((now-started)/1000).toFixed(1);
+  stepResults.push({step:step.id,name:step.name,result:'FAIL',
+    date:now.toLocaleDateString('en-GB'),
+    time:now.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'}),
+    iso:now.toISOString(),dur});
+  setStepUI(currentStep,'fail','✗');
+  document.getElementById('hud-status').textContent = '❌';
+  log('fail',`Step ${step.id} ${step.name} — FAILED/SKIPPED`);
   updateScore();
-  resetHoldBar();
-  clearInterval(holdInterval);
-  holdInterval = null;
-  stepHoldStart = null;
+  resetHold();
+  stepPassed = false;
+  advance();
+}
+
+function advance() {
   currentStep++;
   stepPassed = false;
-  if (currentStep >= WHO_STEPS.length) { showResult(); return; }
+  if (currentStep>=WHO_STEPS.length) { showResult(); return; }
   stepStartTimes[currentStep] = new Date();
-  updateStepUI(currentStep);
-  markActiveStep(currentStep);
-}
-
-function markStepItem(idx, cls, result) {
-  const item = document.getElementById(`step-item-${idx}`);
-  item.className = 'step-item ' + cls;
-  const circle = document.getElementById(`sc-${idx}`);
-  circle.innerHTML = cls === 'passed' ? '✓' : '✗';
-  document.getElementById(`sr-${idx}`).textContent = result;
-}
-
-function markActiveStep(idx) {
-  document.querySelectorAll('.step-item').forEach((el, i) => {
-    if (i === idx) el.classList.add('active');
-    else el.classList.remove('active');
+  updateHUD(currentStep);
+  // Mark active
+  document.querySelectorAll('.s-item').forEach((el,i)=>{
+    el.classList.toggle('active',i===currentStep);
   });
+}
+
+function setStepUI(idx, cls, sym) {
+  const item = document.getElementById(`si-${idx}`);
+  if (!item) return;
+  item.className = `step-item s-item ${cls}`;
+  document.getElementById(`sc-${idx}`).textContent = sym;
+  document.getElementById(`sr-${idx}`).textContent = cls==='pass'?'Pass':'Fail';
 }
 
 function updateScore() {
-  const passed = stepResults.filter(r => r.result === 'PASS').length;
-  const total = stepResults.length;
-  document.getElementById('score-num').textContent = passed;
-  const pct = WHO_STEPS.length > 0 ? Math.round((total / WHO_STEPS.length) * 100) : 0;
-  document.getElementById('score-pct').textContent = pct + '% Complete';
-  document.getElementById('progress-fill').style.width = pct + '%';
+  const passed = stepResults.filter(r=>r.result==='PASS').length;
+  const done = stepResults.length;
+  document.getElementById('score-n').textContent = passed;
+  const pct = Math.round(done/WHO_STEPS.length*100);
+  document.getElementById('score-pct').textContent = pct+'% done';
+  document.getElementById('prog-fill').style.width = pct+'%';
+}
+
+// ─── RESTART ─────────────────────────────────────────────────────────────────
+function restartSession() {
+  closeResult();
+  currentStep=0; stepResults=[]; stepStartTimes={};
+  stepStartTimes[0]=new Date(); stepPassed=false; lmHistory=[];
+  sessionStart=Date.now(); sessionStartDate=new Date();
+  sessionLog=[]; document.getElementById('log-inner').innerHTML='';
+  resetHold();
+  buildStepsList();
+  updateScore();
+  log('info','Session restarted — '+new Date().toLocaleString('en-GB'));
 }
 
 // ─── RESULT OVERLAY ───────────────────────────────────────────────────────────
 function showResult() {
-  clearInterval(sessionTimer);
-  const passed = stepResults.filter(r => r.result === 'PASS').length;
-  const failed = stepResults.filter(r => r.result === 'FAIL').length;
-  const pct = Math.round((passed / WHO_STEPS.length) * 100);
-  document.getElementById('stat-pass').textContent = passed;
-  document.getElementById('stat-fail').textContent = failed;
-  document.getElementById('stat-score').textContent = pct + '%';
-  const card = document.getElementById('result-card');
-  if (passed === WHO_STEPS.length) {
-    card.className = 'result-card all-pass';
-    document.getElementById('result-icon').textContent = '🏆';
-    document.getElementById('result-title').textContent = 'Excellent!';
-    document.getElementById('result-subtitle').textContent = 'You completed all 6 WHO hand hygiene steps correctly.';
-  } else if (passed >= 4) {
-    card.className = 'result-card some-fail';
-    document.getElementById('result-icon').textContent = '⚠️';
-    document.getElementById('result-title').textContent = 'Good Attempt';
-    document.getElementById('result-subtitle').textContent = 'Some steps need improvement. Review the failed steps.';
+  const passed=stepResults.filter(r=>r.result==='PASS').length;
+  const failed=stepResults.filter(r=>r.result==='FAIL').length;
+  const pct=Math.round(passed/WHO_STEPS.length*100);
+
+  document.getElementById('stat-pass').textContent=passed;
+  document.getElementById('stat-fail').textContent=failed;
+  document.getElementById('res-pct-num').textContent=pct+'%';
+
+  // Animate ring
+  const circ=2*Math.PI*52; // 326.7
+  const offset=circ*(1-pct/100);
+  setTimeout(()=>{
+    document.getElementById('ring-arc').style.strokeDashoffset=offset;
+    document.getElementById('ring-arc').style.stroke=
+      pct>=83?'var(--pass)':pct>=50?'var(--warn)':'var(--fail)';
+  },200);
+
+  const card=document.getElementById('result-card');
+  if (passed===WHO_STEPS.length) {
+    card.className='result-card allpass';
+    document.getElementById('res-icon').textContent='🏆';
+    document.getElementById('res-title').textContent='Excellent!';
+    document.getElementById('res-sub').textContent='All 6 WHO steps completed correctly.';
+  } else if (passed>=4) {
+    card.className='result-card somefail';
+    document.getElementById('res-icon').textContent='⚠️';
+    document.getElementById('res-title').textContent='Good Attempt';
+    document.getElementById('res-sub').textContent='Some steps need improvement.';
   } else {
-    card.className = 'result-card some-fail';
-    document.getElementById('result-icon').textContent = '❌';
-    document.getElementById('result-title').textContent = 'Needs Practice';
-    document.getElementById('result-subtitle').textContent = 'Please review the WHO 6-step hand hygiene technique.';
+    card.className='result-card somefail';
+    document.getElementById('res-icon').textContent='❌';
+    document.getElementById('res-title').textContent='Needs Practice';
+    document.getElementById('res-sub').textContent='Please review the WHO 6-step technique.';
   }
-  document.getElementById('result-overlay').style.display = 'flex';
-  log('info', `Session complete — Score: ${passed}/6 (${pct}%)`);
+
+  // Step breakdown
+  const list=document.getElementById('res-steps-list');
+  list.innerHTML='';
+  WHO_STEPS.forEach((step,i)=>{
+    const r=stepResults[i];
+    const pass=r?.result==='PASS';
+    const div=document.createElement('div');
+    div.className=`res-step-row ${pass?'pass':'fail'}`;
+    div.innerHTML=`
+      <span class="res-step-tick">${pass?'✅':'❌'}</span>
+      <span class="res-step-name">${step.emoji} ${step.name}</span>
+      <span class="res-step-dur">${r?r.dur+'s':'—'}</span>`;
+    list.appendChild(div);
+  });
+
+  document.getElementById('result-overlay').classList.add('show');
+  log('info',`Assessment complete — Score ${passed}/6 (${pct}%)`);
 }
 
 function closeResult() {
-  document.getElementById('result-overlay').style.display = 'none';
+  document.getElementById('result-overlay').classList.remove('show');
+  // Reset ring for next use
+  document.getElementById('ring-arc').style.strokeDashoffset='326.7';
 }
 
-function restartSession() {
-  closeResult();
-  currentStep = 0;
-  stepResults = [];
-  stepStartTimes = {};
-  stepStartTimes[0] = new Date();
-  stepPassed = false;
-  lmHistory = [];
-  resetHoldBar();
-  sessionStart = Date.now();
-  sessionStartDate = new Date();
-  clearInterval(sessionTimer);
-  buildStepsList();
-  startSessionClock();
-  updateScore();
-  document.getElementById('log-list').innerHTML = '';
-  sessionLog = [];
-  log('info', 'Session restarted — ' + new Date().toLocaleString('en-GB'));
-}
+// ─── EXPORT ──────────────────────────────────────────────────────────────────
+function exportExcel() {
+  const now=new Date();
+  const passed=stepResults.filter(r=>r.result==='PASS').length;
+  const failed=stepResults.filter(r=>r.result==='FAIL').length;
+  const pct=Math.round(passed/WHO_STEPS.length*100);
+  const elapsed=Math.floor((Date.now()-sessionStart)/1000);
+  const dur=`${Math.floor(elapsed/60)}m ${elapsed%60}s`;
+  const outcome=passed===6?'COMPETENT':passed>=4?'PARTIALLY COMPETENT':'NOT COMPETENT';
+  const modeLabel=selectedMode==='wash'?'Hand Wash (Soap & Water)':'Hand Rub (Alcohol-based)';
 
-function goToLogin() {
-  closeResult();
-  stopCamera();
-  currentStep = 0; stepResults = []; stepPassed = false;
-  clearInterval(sessionTimer);
-  document.getElementById('app-screen').style.display = 'none';
-  document.getElementById('login-screen').style.display = 'flex';
-  document.getElementById('user-name').value = '';
-  document.getElementById('emp-code').value = '';
-  document.getElementById('dept').value = '';
-}
+  const wb=XLSX.utils.book_new();
 
-// ─── EXPORT ───────────────────────────────────────────────────────────────────
-function exportResults() {
-  const now = new Date();
-  const passed = stepResults.filter(r => r.result === 'PASS').length;
-  const failed = stepResults.filter(r => r.result === 'FAIL').length;
-  const pct = Math.round((passed / WHO_STEPS.length) * 100);
-  const sessionSecs = Math.floor((Date.now() - sessionStart) / 1000);
-  const sessionMins = Math.floor(sessionSecs / 60);
-  const sessionRemSec = sessionSecs % 60;
-  const sessionDurStr = `${sessionMins}m ${sessionRemSec}s`;
-  const outcome = passed === WHO_STEPS.length ? 'COMPETENT' : passed >= 4 ? 'PARTIALLY COMPETENT' : 'NOT COMPETENT';
-  const endISO = now.toISOString();
-
-  const wb = XLSX.utils.book_new();
-
-  // ── SHEET 1: Assessment Report ─────────────────────────────────────────────
-  const reportRows = [
+  const r1=[
     ['OMAC HAND HYGIENE ASSESSMENT REPORT'],
-    ['WHO 6-Step Hand Hygiene Protocol — Audit Document'],
-    ['Tool developed by S M Baqir'],
-    [''],
-    ['─── SESSION IDENTIFICATION ───────────────────────────'],
-    ['Session ID',        `HH-${userData.code}-${now.toISOString().replace(/[-:.TZ]/g,'').slice(0,14)}`],
-    [''],
-    ['─── STAFF INFORMATION ────────────────────────────────'],
-    ['Full Name',         userData.name],
-    ['Employee / Staff Code', userData.code],
-    ['Department',        userData.dept || 'General'],
-    [''],
-    ['─── SESSION DATE & TIME ──────────────────────────────'],
-    ['Date',              userData.date],
-    ['Day of Week',       userData.dayOfWeek],
-    ['Month',             userData.month],
-    ['Year',              userData.year],
-    ['Session Start Time', userData.time],
-    ['Session End Time',  now.toLocaleTimeString([], { hour:'2-digit', minute:'2-digit', second:'2-digit' })],
-    ['Session Duration',  sessionDurStr],
-    ['ISO Start (UTC)',   userData.isoStart],
-    ['ISO End (UTC)',     endISO],
-    [''],
-    ['─── ASSESSMENT RESULTS ──────────────────────────────'],
-    ['Step No.', 'Step Name', 'Result', 'Date', 'Day', 'Time', 'Step Duration (s)', 'ISO Timestamp (UTC)'],
-    ...stepResults.map(r => [
-      r.step, r.name, r.result,
-      r.date, r.dayOfWeek, r.time,
-      r.durationSec, r.isoTimestamp
-    ]),
-    [''],
-    ['─── SUMMARY ──────────────────────────────────────────'],
-    ['Total Steps',   WHO_STEPS.length],
-    ['Steps Passed',  passed],
-    ['Steps Failed',  failed],
-    ['Score (%)',     pct + '%'],
-    ['Outcome',       outcome],
-    ['Assessed By',   'OMAC AI System'],
-    ['Protocol',      'WHO 6-Step Hand Hygiene Technique (2009)'],
-    [''],
-    ['─── AUDIT METADATA ──────────────────────────────────'],
-    ['Tool Version',   'OMAC HH Tool v1.0'],
-    ['Developed By',   'S M Baqir'],
-    ['Export Generated', now.toLocaleString('en-GB', { dateStyle:'full', timeStyle:'medium' })],
-    ['Export ISO',     endISO],
+    ['WHO 6-Step Protocol · Developed by S M Baqir'],[''],
+    ['─── STAFF ─────────────────────────────────────────────────'],
+    ['Name',userData.name],['Code',userData.code],['Department',userData.dept],[''],
+    ['─── SESSION ────────────────────────────────────────────────'],
+    ['Mode',modeLabel],
+    ['Date',userData.date],['Day',userData.dayOfWeek],['Month',userData.month],
+    ['Start',userData.time],
+    ['End',now.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'})],
+    ['Duration',dur],['ISO Start',userData.isoStart],['ISO End',now.toISOString()],[''],
+    ['─── RESULTS ────────────────────────────────────────────────'],
+    ['Step','Name','Result','Date','Day','Time','Duration(s)','ISO Timestamp'],
+    ...stepResults.map(r=>[r.step,r.name,r.result,r.date,
+      now.toLocaleDateString('en-GB',{weekday:'long'}),r.time,r.dur,r.iso]),[''],
+    ['─── SUMMARY ────────────────────────────────────────────────'],
+    ['Total Steps',6],['Passed',passed],['Failed',failed],
+    ['Compliant Steps / Total',`${passed} / ${WHO_STEPS.length}`],
+    ['Compliance %',pct+'%'],['Outcome',outcome],
+    ['Protocol','WHO 6-Step Hand Hygiene (2009)'],
+    ['Tool','OMAC HH Tool v2 · S M Baqir'],
+    ['Exported',now.toLocaleString('en-GB',{dateStyle:'full',timeStyle:'medium'})],
   ];
+  const ws1=XLSX.utils.aoa_to_sheet(r1);
+  ws1['!cols']=[{wch:22},{wch:40}];
+  XLSX.utils.book_append_sheet(wb,ws1,'Assessment Report');
 
-  const ws1 = XLSX.utils.aoa_to_sheet(reportRows);
-  ws1['!cols'] = [{wch:28},{wch:32},{wch:18},{wch:14},{wch:12},{wch:12},{wch:20},{wch:28}];
-  XLSX.utils.book_append_sheet(wb, ws1, 'Assessment Report');
-
-  // ── SHEET 2: Step Detail Audit ─────────────────────────────────────────────
-  const stepDetailRows = [
-    ['STEP-BY-STEP AUDIT TRAIL'],
-    [''],
-    ['Staff Name', userData.name, '', 'Employee Code', userData.code],
-    ['Department', userData.dept || 'General', '', 'Date', userData.date],
-    ['Session Start', userData.time, '', 'Session End', now.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'})],
-    [''],
-    ['Step #', 'Step Name', 'WHO Description', 'Result', 'Date', 'Day of Week', 'Time of Completion', 'Duration at Step (s)', 'Pass/Fail (Binary)', 'ISO Timestamp (UTC)'],
-    ...WHO_STEPS.map((step, i) => {
-      const r = stepResults.find(x => x.step === step.id);
-      return [
-        step.id,
-        step.name,
-        step.instruction,
-        r ? r.result : 'NOT REACHED',
-        r ? r.date : '',
-        r ? r.dayOfWeek : '',
-        r ? r.time : '',
-        r ? r.durationSec : '',
-        r ? (r.result === 'PASS' ? 1 : 0) : '',
-        r ? r.isoTimestamp : ''
-      ];
-    }),
-    [''],
-    ['TOTAL SCORE', `${passed} / ${WHO_STEPS.length}`, '', 'PERCENTAGE', pct + '%', '', 'OUTCOME', outcome]
+  const r2=[
+    ['STEP-BY-STEP AUDIT TRAIL'],[''],
+    ['Staff',userData.name,'','Code',userData.code,'','Dept',userData.dept],
+    ['Mode',modeLabel,'','Date',userData.date],[''],
+    ['Step #','Step Name','WHO Instruction','Result','Date','Time','Duration(s)','Pass(1)/Fail(0)','ISO Timestamp'],
+    ...WHO_STEPS.map((step,i)=>{
+      const r=stepResults.find(x=>x.step===step.id);
+      return[step.id,step.name,step.instr,
+        r?r.result:'NOT REACHED',r?r.date:'',r?r.time:'',r?r.dur:'',
+        r?(r.result==='PASS'?1:0):'',r?r.iso:''];
+    }),[''],
+    ['COMPLIANCE SCORE',`${passed} / ${WHO_STEPS.length}`,'','%',pct+'%','','OUTCOME',outcome]
   ];
+  const ws2=XLSX.utils.aoa_to_sheet(r2);
+  ws2['!cols']=[{wch:8},{wch:22},{wch:36},{wch:14},{wch:13},{wch:12},{wch:14},{wch:16},{wch:28}];
+  XLSX.utils.book_append_sheet(wb,ws2,'Step Audit Trail');
 
-  const ws2 = XLSX.utils.aoa_to_sheet(stepDetailRows);
-  ws2['!cols'] = [{wch:8},{wch:22},{wch:40},{wch:14},{wch:13},{wch:14},{wch:20},{wch:20},{wch:18},{wch:28}];
-  XLSX.utils.book_append_sheet(wb, ws2, 'Step Detail Audit');
-
-  // ── SHEET 3: Cumulative Audit Log (single-row per session, for frequency tracking) ─
-  const auditRow = [
-    userData.name,
-    userData.code,
-    userData.dept || 'General',
-    userData.date,
-    userData.dayOfWeek,
-    userData.month,
-    userData.year,
-    userData.time,
-    now.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'}),
-    sessionDurStr,
-    passed,
-    failed,
-    pct + '%',
-    outcome,
-    ...WHO_STEPS.map(step => {
-      const r = stepResults.find(x => x.step === step.id);
-      return r ? r.result : 'NOT REACHED';
-    }),
-    userData.isoStart,
-    endISO
+  // Cumulative log
+  const logRows=[
+    ['#','Time','Type','Event'],
+    ...sessionLog.map((l,i)=>[i+1,l.t,l.type.toUpperCase(),l.msg])
   ];
+  const ws3=XLSX.utils.aoa_to_sheet(logRows);
+  ws3['!cols']=[{wch:5},{wch:12},{wch:8},{wch:60}];
+  XLSX.utils.book_append_sheet(wb,ws3,'Session Log');
 
-  const auditHeader = [
-    'Full Name', 'Employee Code', 'Department',
-    'Date', 'Day', 'Month', 'Year',
-    'Start Time', 'End Time', 'Duration',
-    'Passed', 'Failed', 'Score %', 'Outcome',
-    'Step 1 - Palm to Palm',
-    'Step 2 - Interlaced Fingers',
-    'Step 3 - Back of Fingers',
-    'Step 4 - Rotational Thumbs',
-    'Step 5 - Fingertip Scrub',
-    'Step 6 - Wrist Rotation',
-    'ISO Start (UTC)', 'ISO End (UTC)'
-  ];
-
-  // Load existing audit log from localStorage to append
-  let allAuditRows = [];
-  try {
-    const stored = localStorage.getItem('omac_audit_log');
-    if (stored) allAuditRows = JSON.parse(stored);
-  } catch(e) {}
-  allAuditRows.push(auditRow);
-  try { localStorage.setItem('omac_audit_log', JSON.stringify(allAuditRows)); } catch(e) {}
-
-  const ws3 = XLSX.utils.aoa_to_sheet([auditHeader, ...allAuditRows]);
-  ws3['!cols'] = auditHeader.map(h => ({ wch: Math.max(h.length + 2, 14) }));
-  XLSX.utils.book_append_sheet(wb, ws3, 'Cumulative Audit Log');
-
-  // ── SHEET 4: Session Event Log ────────────────────────────────────────────
-  const logRows = [
-    ['SESSION EVENT LOG'],
-    ['Staff', userData.name, 'Code', userData.code, 'Date', userData.date],
-    [''],
-    ['#', 'Time', 'Type', 'Event Description'],
-    ...sessionLog.map((l, i) => [i+1, l.time, l.type.toUpperCase(), l.msg])
-  ];
-  const ws4 = XLSX.utils.aoa_to_sheet(logRows);
-  ws4['!cols'] = [{wch:5},{wch:12},{wch:8},{wch:60}];
-  XLSX.utils.book_append_sheet(wb, ws4, 'Session Event Log');
-
-  // ── Save ─────────────────────────────────────────────────────────────────
-  const fname = `OMAC_HH_${userData.code}_${userData.date.replace(/\//g,'-')}_${userData.time.replace(/:/g,'')}.xlsx`;
-  XLSX.writeFile(wb, fname);
-  log('info', `Audit report exported → ${fname} (${allAuditRows.length} total session(s) in log)`);
+  const fname=`OMAC_HH_${selectedMode==='wash'?'Wash':'Rub'}_${userData.code}_${userData.date.replace(/\//g,'-')}.xlsx`;
+  XLSX.writeFile(wb,fname);
+  log('info',`Report exported → ${fname}`);
 }
 
 // ─── LOG ─────────────────────────────────────────────────────────────────────
 function log(type, msg) {
-  const now = new Date();
-  const t = now.toLocaleTimeString([], { hour:'2-digit', minute:'2-digit', second:'2-digit' });
-  sessionLog.push({ time: t, isoTime: now.toISOString(), type, msg });
-  const list = document.getElementById('log-list');
-  const div = document.createElement('div');
-  div.className = 'log-entry';
-  div.innerHTML = `<div class="log-dot ${type}"></div><div class="log-time">${t}</div><div class="log-msg">${msg}</div>`;
-  list.prepend(div);
-  while (list.children.length > 25) list.removeChild(list.lastChild);
+  const t=new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  sessionLog.push({t,type,msg});
+  const inner=document.getElementById('log-inner');
+  const div=document.createElement('div');
+  div.className='log-row';
+  div.innerHTML=`<div class="ldot ${type}"></div><div class="lt">${t}</div><div class="lm">${msg}</div>`;
+  inner.prepend(div);
+  while (inner.children.length>30) inner.removeChild(inner.lastChild);
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// WEBCAM-REALITY DETECTION ENGINE  v3
-//
-// Ground truth of what a laptop webcam ACTUALLY sees for each WHO step:
-//
-// STEP 1 Palm-to-Palm:
-//   Hands horizontal, both held flat toward cam. Camera sees TWO ROWS of
-//   fingertips edge-on at same height, moving LEFT↔RIGHT together (lateral rub).
-//   Key signal: both wrist-Y at same level + hands moving laterally in sync.
-//
-// STEP 2 Interlaced Fingers:
-//   Fingers of both hands mesh together pointing toward cam. Camera sees ONE
-//   wider merged cluster of fingertips. Hands move UP↔DOWN (vertical rub).
-//   Key signal: fingertip X-spread WIDER than one hand + vertical oscillation.
-//
-// STEP 3 Back of Fingers (dorsum):
-//   One hand flips — knuckles face cam, fingers point DOWN or curl.
-//   Camera sees one hand with fingertips BELOW its own wrist level.
-//   Key signal: one hand's tips are below wrist Y + lateral motion.
-//
-// STEP 4 Rotational Thumbs:
-//   One thumb wraps other palm. Camera sees thumb tip orbiting opposite palm.
-//   Key signal: thumb tip near opposite palm center + circular trajectory.
-//
-// STEP 5 Fingertip Scrub:
-//   Bent fingertips of one hand rotate on opposite palm.
-//   Camera sees fingers curled (tips near MCPs) + rotational motion.
-//   Key signal: tips of one hand close to its own MCPs (curled) + rotation.
-//
-// STEP 6 Wrist Rotation:
-//   One hand clasps other wrist, rotates it.
-//   Camera sees wrists overlapping very close + rotational arc.
-//   Key signal: wrists very close + wrist landmark traces a rotational path.
-// ═══════════════════════════════════════════════════════════════════════════════
-
-// ─── HISTORY BUFFER ──────────────────────────────────────────────────────────
-// 30 frames ≈ 1 second at 30fps — enough to measure meaningful oscillation
-const HISTORY_LEN = 30;
-let lmHistory = [];
-
-function pushHistory(hands) {
-  lmHistory.push({ ts: Date.now(), hands: hands.map(h => h.map(p => ({x:p.x, y:p.y, z:p.z}))) });
-  if (lmHistory.length > HISTORY_LEN) lmHistory.shift();
-}
-function updateMotionHistory(hands) { pushHistory(hands); }
-
-// ─── MATH HELPERS ────────────────────────────────────────────────────────────
-function d2(a, b)  { return Math.sqrt((a.x-b.x)**2 + (a.y-b.y)**2); }
-function handW(lm) { return d2(lm[5], lm[17]); }  // index-MCP to pinky-MCP
-function handH(lm) { return d2(lm[0], lm[9]);  }  // wrist to middle-MCP
-
-function palmCtr(lm) {
-  const idx = [0,5,9,13,17];
-  return { x: idx.reduce((s,i)=>s+lm[i].x,0)/idx.length,
-           y: idx.reduce((s,i)=>s+lm[i].y,0)/idx.length };
-}
-
-// Landmark motion analysis over the history window
-// Returns { totalDist, oscX, oscY, rangeX, rangeY }
-function lmMotion(handIdx, lmIdx) {
-  const frames = lmHistory.filter(f => f.hands[handIdx]);
-  if (frames.length < 8) return { totalDist:0, oscX:0, oscY:0, rangeX:0, rangeY:0 };
-  const pts = frames.map(f => f.hands[handIdx][lmIdx]);
-  let dist=0, pDx=0, pDy=0, oscX=0, oscY=0;
-  const xs=pts.map(p=>p.x), ys=pts.map(p=>p.y);
-  for (let i=1; i<pts.length; i++) {
-    const dx=pts[i].x-pts[i-1].x, dy=pts[i].y-pts[i-1].y;
-    dist += Math.sqrt(dx*dx+dy*dy);
-    if (pDx!==0 && Math.sign(dx)!==Math.sign(pDx)) oscX++;
-    if (pDy!==0 && Math.sign(dy)!==Math.sign(pDy)) oscY++;
-    pDx=dx; pDy=dy;
-  }
-  return { totalDist:dist, oscX, oscY,
-           rangeX: Math.max(...xs)-Math.min(...xs),
-           rangeY: Math.max(...ys)-Math.min(...ys) };
-}
-
-// Convenience: motion of palm centre for a hand
-function palmMot(handIdx) { return lmMotion(handIdx, 9); }
-
-// ─── STEP 1 — Palm to Palm ───────────────────────────────────────────────────
-// Webcam sees: two flat hands horizontal, fingertips edge-on, same vertical level.
-// Valid action: hands rub laterally (left-right) while pressed together.
-// MUST NOT pass: hands simply held still and close.
-function detectStep1(hands) {
-  if (hands.length < 2) return false;
-  const h1=hands[0], h2=hands[1];
-
-  // Both sets of fingertips must be at roughly the same Y (horizontal hands)
-  const tipY1 = [8,12,16,20].reduce((s,i)=>s+h1[i].y,0)/4;
-  const tipY2 = [8,12,16,20].reduce((s,i)=>s+h2[i].y,0)/4;
-  const wristY1=h1[0].y, wristY2=h2[0].y;
-
-  // Tips should be close to wrist in Y (horizontal hand = tips ≈ same height as wrist)
-  const h1Horizontal = Math.abs(tipY1 - wristY1) < 0.20;
-  const h2Horizontal = Math.abs(tipY2 - wristY2) < 0.20;
-  if (!h1Horizontal || !h2Horizontal) return false;
-
-  // Wrists close together in both X and Y
-  const wDist = d2(h1[0], h2[0]);
-  const hw = (handW(h1)+handW(h2))/2;
-  if (wDist > hw * 2.2) return false;
-
-  // MOTION REQUIRED: lateral (X) oscillation on at least one hand
-  const m1 = palmMot(0), m2 = palmMot(1);
-  const lateralOsc = m1.oscX >= 2 || m2.oscX >= 2;
-  const lateralRange = m1.rangeX > 0.035 || m2.rangeX > 0.035;
-  const moving = m1.totalDist > 0.04 || m2.totalDist > 0.04;
-
-  return moving && (lateralOsc || lateralRange);
-}
-
-// ─── STEP 2 — Interlaced Fingers ────────────────────────────────────────────
-// Webcam sees: fingers of both hands meshed together → ONE wider blob of tips.
-// Combined fingertip X-span is WIDER than either hand alone.
-// Valid action: hands rub vertically (up-down squeeze motion).
-function detectStep2(hands) {
-  if (hands.length < 2) return false;
-  const h1=hands[0], h2=hands[1];
-
-  // Hands must be close — palm centres near each other
-  const pc1=palmCtr(h1), pc2=palmCtr(h2);
-  const centerD = d2(pc1,pc2);
-  const hw = (handW(h1)+handW(h2))/2;
-  if (centerD > hw*2.5) return false;
-
-  // KEY: combined fingertip X-spread should exceed the wider hand's own spread
-  // because interlaced fingers = tips from both hands interleaved side-by-side
-  const allTipsX = [8,12,16,20].map(i=>h1[i].x).concat([8,12,16,20].map(i=>h2[i].x));
-  const combinedSpan = Math.max(...allTipsX) - Math.min(...allTipsX);
-  const singleSpan = Math.max(handW(h1), handW(h2));
-  // Combined span should be meaningfully wider than single hand (fingers interleaved)
-  if (combinedSpan < singleSpan * 1.1) return false;
-
-  // MOTION: vertical oscillation — squeezing fingers up and down between hands
-  const m1=palmMot(0), m2=palmMot(1);
-  const vertOsc = m1.oscY >= 2 || m2.oscY >= 2;
-  const vertRange = m1.rangeY > 0.030 || m2.rangeY > 0.030;
-  const moving = m1.totalDist > 0.035 || m2.totalDist > 0.035;
-
-  return moving && (vertOsc || vertRange);
-}
-
-// ─── STEP 3 — Back of Fingers (Dorsum) ──────────────────────────────────────
-// Webcam sees: one hand FLIPPED — knuckles face camera, fingertips curl DOWN.
-// That hand's fingertip Y > its wrist Y (tips below wrist = curled toward body).
-// Other hand is flat/normal. Lateral rubbing motion.
-function detectStep3(hands) {
-  if (hands.length < 2) return false;
-  const h1=hands[0], h2=hands[1];
-
-  // Detect a flipped/dorsum hand: fingertips are BELOW the wrist in Y
-  // (because in webcam coords Y increases downward, wrist is lower than tips
-  //  when palm faces up/cam, but when back faces cam fingers curl down → tips > wrist Y)
-  function isFlipped(lm) {
-    // All 4 fingertips should be at or below wrist Y level
-    const tipsBelow = [8,12,16,20].filter(i => lm[i].y >= lm[0].y - 0.05).length;
-    // Knuckle (MCP) Z should be less than fingertip Z (knuckles closer to cam)
-    const knuckleForward = [5,9,13,17].reduce((s,i)=>s+lm[i].z,0)/4
-                         < [8,12,16,20].reduce((s,i)=>s+lm[i].z,0)/4;
-    return tipsBelow >= 3;
-  }
-
-  const flip1=isFlipped(h1), flip2=isFlipped(h2);
-  if (!flip1 && !flip2) return false;   // neither hand is dorsum-facing
-  if (flip1 && flip2) return false;     // both flipped = unlikely to be this step
-
-  // Hands overlapping — close proximity
-  const wDist = d2(h1[0], h2[0]);
-  const hw = (handW(h1)+handW(h2))/2;
-  if (wDist > hw*2.2) return false;
-
-  // Lateral rubbing motion required
-  const m1=palmMot(0), m2=palmMot(1);
-  const lateral = m1.oscX >= 2 || m2.oscX >= 2 || m1.rangeX > 0.030 || m2.rangeX > 0.030;
-  const moving  = m1.totalDist > 0.035 || m2.totalDist > 0.035;
-
-  return moving && lateral;
-}
-
-// ─── STEP 4 — Rotational Thumbs ─────────────────────────────────────────────
-// Webcam sees: thumb of one hand hooked around other palm, circling.
-// Thumb tip (lm 4) is near opposite palm centre AND traces a circular path
-// = oscillation in BOTH X and Y axes over time.
-function detectStep4(hands) {
-  if (hands.length < 2) return false;
-  const h1=hands[0], h2=hands[1];
-
-  const pc1=palmCtr(h1), pc2=palmCtr(h2);
-  const hw = (handW(h1)+handW(h2))/2;
-
-  // Which hand's thumb is near the opposite palm?
-  const t1nP2 = d2(h1[4], pc2) < hw*1.3;
-  const t2nP1 = d2(h2[4], pc1) < hw*1.3;
-  if (!t1nP2 && !t2nP1) return false;
-
-  // Wrists must be reasonably close
-  if (d2(h1[0],h2[0]) > hw*2.5) return false;
-
-  // Thumb trajectory must be CIRCULAR: oscillation in both axes
-  const thumbHand = t1nP2 ? 0 : 1;
-  const tm = lmMotion(thumbHand, 4);
-  // Circular = changes direction in BOTH X and Y (not just side-to-side)
-  const circular = tm.oscX >= 2 && tm.oscY >= 2 && tm.totalDist > 0.045;
-
-  return circular;
-}
-
-// ─── STEP 5 — Fingertip Scrub ────────────────────────────────────────────────
-// Webcam sees: fingers of one hand curled/bent, rubbing in circles on other palm.
-// "Curled" from front = fingertips close to that hand's own PIP joints (lm 6,10,14,18).
-// Rotational motion = both X and Y oscillation.
-function detectStep5(hands) {
-  if (hands.length < 2) return false;
-  const h1=hands[0], h2=hands[1];
-
-  // Detect curled hand: fingertips close to their own PIP joints
-  function isCurled(lm) {
-    const tips=[8,12,16,20], pips=[7,11,15,19];
-    const avgDist = tips.reduce((s,t,i)=>s+d2(lm[t],lm[pips[i]]),0)/4;
-    return avgDist < handW(lm)*0.6;
-  }
-
-  const curl1=isCurled(h1), curl2=isCurled(h2);
-  if (!curl1 && !curl2) return false;
-
-  // Hands must be close
-  const hw=(handW(h1)+handW(h2))/2;
-  if (d2(h1[0],h2[0]) > hw*2.2) return false;
-
-  // The curled hand must be doing rotational scrubbing
-  const scrubIdx = curl1 ? 0 : 1;
-  const sm = palmMot(scrubIdx);
-  // Rotational = oscillation in BOTH axes
-  const rotational = sm.oscX >= 2 && sm.oscY >= 2;
-  const moving = sm.totalDist > 0.04;
-
-  return rotational && moving;
-}
-
-// ─── STEP 6 — Wrist Rotation ─────────────────────────────────────────────────
-// Webcam sees: wrists overlapping very close. One hand clasps other wrist and
-// rotates it. Wrist landmark (lm 0) traces a small rotational arc.
-// Strictly: wrists must be very close AND rotation arc detected.
-function detectStep6(hands) {
-  if (hands.length < 2) return false;
-  const h1=hands[0], h2=hands[1];
-
-  const hw=(handW(h1)+handW(h2))/2;
-  // Wrists must be clasped — very tight proximity
-  if (d2(h1[0],h2[0]) > hw*1.4) return false;
-
-  // Fingers should be pointing somewhat downward or horizontal
-  // (wrist-clasp posture: hands lower in frame, not pointing up)
-  const tipY1=[8,12,16,20].reduce((s,i)=>s+h1[i].y,0)/4;
-  const tipY2=[8,12,16,20].reduce((s,i)=>s+h2[i].y,0)/4;
-  const claspPosture = tipY1 > h1[0].y-0.15 || tipY2 > h2[0].y-0.15;
-  if (!claspPosture) return false;
-
-  // Wrist of at least one hand must trace a rotational arc
-  const wm1=lmMotion(0,0), wm2=lmMotion(1,0);
-  // Rotation = oscillation in at least one axis, meaningful total distance
-  const rotating = (wm1.oscX+wm1.oscY >= 3 && wm1.totalDist > 0.03) ||
-                   (wm2.oscX+wm2.oscY >= 3 && wm2.totalDist > 0.03);
-
-  return rotating;
-}
-
-// ─── KEYBOARD SHORTCUT (testing only — skip step with →) ─────────────────────
-document.addEventListener('keydown', e => {
-  if (e.key === 'ArrowRight' && currentStep < WHO_STEPS.length) { skipStep(); }
+// ─── KEYBOARD SHORTCUT ────────────────────────────────────────────────────────
+document.addEventListener('keydown',e=>{
+  if (e.key==='ArrowRight'&&currentStep<WHO_STEPS.length) skipStep();
 });
 </script>
 </body>
